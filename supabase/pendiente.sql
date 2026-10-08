@@ -1,9 +1,168 @@
 -- =====================================================================
---  AISLASER · Lo que falta en tu base de datos (versión corta)
---  Mensajes del formulario, almacenes de imágenes, campos del informe,
---  sello y firma. Se puede ejecutar varias veces sin perder nada.
---  Supabase → SQL Editor → New query → pegar TODO → Run
+--  AISLASER · Script completo de la base de datos (repara lo que falte)
+--  Tu base de datos se quedó a medias: tablas creadas pero sin las reglas
+--  de acceso de informes/fotos, sin mensajes y sin almacenes de imágenes.
+--  Este archivo lo crea o repara TODO y se puede ejecutar varias veces.
+--  Supabase → SQL Editor → "+ New query" → pegar TODO → Run
 -- =====================================================================
+
+create extension if not exists "pgcrypto";
+
+-- ---------------------------------------------------------------------
+-- 1. Administradores del panel
+--    Solo los usuarios que estén en esta tabla pueden entrar al panel.
+-- ---------------------------------------------------------------------
+create table if not exists public.admin_users (
+  user_id    uuid primary key references auth.users (id) on delete cascade,
+  email      text not null,
+  full_name  text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.admin_users enable row level security;
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.admin_users where user_id = auth.uid());
+$$;
+
+grant execute on function public.is_admin() to anon, authenticated;
+
+drop policy if exists "admin_users: ver" on public.admin_users;
+create policy "admin_users: ver" on public.admin_users
+  for select to authenticated
+  using (user_id = auth.uid() or public.is_admin());
+
+-- ---------------------------------------------------------------------
+-- 2. Utilidad: updated_at automático
+-- ---------------------------------------------------------------------
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- 3. Dosieres
+-- ---------------------------------------------------------------------
+create table if not exists public.dossiers (
+  id               uuid primary key default gen_random_uuid(),
+  title            text not null default 'Nuevo dosier',
+  subtitle         text not null default '',
+  client_name      text not null default '',
+  location         text not null default '',
+  work_date        date,
+  reference        text not null default '',
+  intro            text not null default '',          -- HTML del editor
+  cover_image_path text,                               -- ruta en Storage
+  status           text not null default 'borrador'
+                   check (status in ('borrador', 'terminado')),
+  created_by       uuid references auth.users (id) on delete set null default auth.uid(),
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
+drop trigger if exists dossiers_updated_at on public.dossiers;
+create trigger dossiers_updated_at
+  before update on public.dossiers
+  for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------------------
+-- 4. Puntos del dosier (1., 2., 3. ...)
+-- ---------------------------------------------------------------------
+create table if not exists public.dossier_points (
+  id           uuid primary key default gen_random_uuid(),
+  dossier_id   uuid not null references public.dossiers (id) on delete cascade,
+  position     integer not null default 0,
+  title        text not null default '',
+  body         text not null default '',               -- HTML del editor
+  image_layout text not null default 'grid-2'
+               check (image_layout in ('grid-1', 'grid-2', 'grid-3')),
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+create index if not exists dossier_points_dossier_idx
+  on public.dossier_points (dossier_id, position);
+
+drop trigger if exists dossier_points_updated_at on public.dossier_points;
+create trigger dossier_points_updated_at
+  before update on public.dossier_points
+  for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------------------
+-- 5. Imágenes de cada punto
+-- ---------------------------------------------------------------------
+create table if not exists public.dossier_images (
+  id           uuid primary key default gen_random_uuid(),
+  dossier_id   uuid not null references public.dossiers (id) on delete cascade,
+  point_id     uuid not null references public.dossier_points (id) on delete cascade,
+  storage_path text not null,
+  caption      text not null default '',
+  position     integer not null default 0,
+  width        integer,
+  height       integer,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists dossier_images_point_idx
+  on public.dossier_images (point_id, position);
+create index if not exists dossier_images_dossier_idx
+  on public.dossier_images (dossier_id);
+
+-- Cualquier cambio en puntos o imágenes actualiza la fecha del dosier
+create or replace function public.touch_dossier()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.dossiers
+     set updated_at = now()
+   where id = coalesce(new.dossier_id, old.dossier_id);
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists dossier_points_touch on public.dossier_points;
+create trigger dossier_points_touch
+  after insert or update or delete on public.dossier_points
+  for each row execute function public.touch_dossier();
+
+drop trigger if exists dossier_images_touch on public.dossier_images;
+create trigger dossier_images_touch
+  after insert or update or delete on public.dossier_images
+  for each row execute function public.touch_dossier();
+
+-- RLS: solo administradores
+alter table public.dossiers       enable row level security;
+alter table public.dossier_points enable row level security;
+alter table public.dossier_images enable row level security;
+
+drop policy if exists "dossiers: admins" on public.dossiers;
+create policy "dossiers: admins" on public.dossiers
+  for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "dossier_points: admins" on public.dossier_points;
+create policy "dossier_points: admins" on public.dossier_points
+  for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "dossier_images: admins" on public.dossier_images;
+create policy "dossier_images: admins" on public.dossier_images
+  for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
 
 -- ---------------------------------------------------------------------
 -- 6. Mensajes del formulario de contacto de la web
@@ -66,6 +225,11 @@ create policy "dossier-images: admins borran" on storage.objects
   for delete to authenticated
   using (bucket_id = 'dossier-images' and public.is_admin());
 
+-- =====================================================================
+-- Migración 002 incluida (formato informe, sello y firma).
+-- En una instalación nueva basta con ejecutar este archivo; en una
+-- instalación que ya tenía el esquema, ejecutar migrations/002_informe_y_firma.sql
+-- =====================================================================
 
 -- ---------------------------------------------------------------------
 -- 1. Nuevos campos del dosier (cabecera del informe y cierre con firma)
