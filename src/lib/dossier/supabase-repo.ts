@@ -1,11 +1,16 @@
-"use client";
-
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DOSSIER_BUCKET, publicImageUrl } from "@/lib/supabase/env";
-import type { Dossier, DossierImage, DossierPoint, DossierRepo } from "./types";
+import type { DossierImage, DossierPoint, DossierRepo } from "./types";
 
 const fail = (error: { message: string } | null) => {
   if (error) throw new Error(error.message);
+};
+
+/** Una actualización que no toca ninguna fila no es un éxito: sesión caducada o elemento borrado */
+const NOT_SAVED = "No se guardó: la sesión ha caducado o el elemento ya no existe. Recarga la página.";
+const expectRows = ({ data, error }: { data: unknown[] | null; error: { message: string } | null }) => {
+  fail(error);
+  if (!data?.length) throw new Error(NOT_SAVED);
 };
 
 export function createSupabaseRepo(supabase: SupabaseClient): DossierRepo {
@@ -18,22 +23,24 @@ export function createSupabaseRepo(supabase: SupabaseClient): DossierRepo {
 
   return {
     async updateDossier(id, patch) {
-      const { error } = await supabase.from("dossiers").update(patch).eq("id", id);
-      fail(error);
+      expectRows(await supabase.from("dossiers").update(patch).eq("id", id).select("id"));
     },
 
     async setCover(dossier, blob, size) {
       const path = `${dossier.id}/portada/${crypto.randomUUID()}.jpg`;
       await upload(path, blob);
-      const { error } = await supabase.from("dossiers").update({ cover_image_path: path }).eq("id", dossier.id);
-      fail(error);
+      try {
+        expectRows(await supabase.from("dossiers").update({ cover_image_path: path }).eq("id", dossier.id).select("id"));
+      } catch (e) {
+        await storage().remove([path]);
+        throw e;
+      }
       if (dossier.cover_image_path) await storage().remove([dossier.cover_image_path]);
       return { path, url: publicImageUrl(path)!, ...size };
     },
 
     async removeCover(dossier) {
-      const { error } = await supabase.from("dossiers").update({ cover_image_path: null }).eq("id", dossier.id);
-      fail(error);
+      expectRows(await supabase.from("dossiers").update({ cover_image_path: null }).eq("id", dossier.id).select("id"));
       if (dossier.cover_image_path) await storage().remove([dossier.cover_image_path]);
     },
 
@@ -48,11 +55,11 @@ export function createSupabaseRepo(supabase: SupabaseClient): DossierRepo {
     },
 
     async updatePoint(id, patch) {
-      const { error } = await supabase.from("dossier_points").update(patch).eq("id", id);
-      fail(error);
+      expectRows(await supabase.from("dossier_points").update(patch).eq("id", id).select("id"));
     },
 
     async deletePoint(point) {
+      // Borrar algo que ya no existe deja el resultado deseado: no es un error
       const { error } = await supabase.from("dossier_points").delete().eq("id", point.id);
       fail(error);
       const paths = point.images.map((i) => i.storage_path);
@@ -61,9 +68,9 @@ export function createSupabaseRepo(supabase: SupabaseClient): DossierRepo {
 
     async reorderPoints(items) {
       const results = await Promise.all(
-        items.map((it) => supabase.from("dossier_points").update({ position: it.position }).eq("id", it.id)),
+        items.map((it) => supabase.from("dossier_points").update({ position: it.position }).eq("id", it.id).select("id")),
       );
-      results.forEach((r) => fail(r.error));
+      results.forEach(expectRows);
     },
 
     async addImage(point, blob, size, position) {
@@ -89,8 +96,7 @@ export function createSupabaseRepo(supabase: SupabaseClient): DossierRepo {
     },
 
     async updateImage(id, patch) {
-      const { error } = await supabase.from("dossier_images").update(patch).eq("id", id);
-      fail(error);
+      expectRows(await supabase.from("dossier_images").update(patch).eq("id", id).select("id"));
     },
 
     async deleteImage(image) {
@@ -101,49 +107,9 @@ export function createSupabaseRepo(supabase: SupabaseClient): DossierRepo {
 
     async reorderImages(items) {
       const results = await Promise.all(
-        items.map((it) => supabase.from("dossier_images").update({ position: it.position }).eq("id", it.id)),
+        items.map((it) => supabase.from("dossier_images").update({ position: it.position }).eq("id", it.id).select("id")),
       );
-      results.forEach((r) => fail(r.error));
+      results.forEach(expectRows);
     },
-  };
-}
-
-type DossierRow = Omit<Dossier, "points" | "cover_url" | keyof DossierExtras> & Partial<DossierExtras>;
-type DossierExtras = Pick<Dossier, "template" | "attention" | "prepared_by" | "issue_place" | "signer_name" | "show_signature">;
-
-/** Valores por defecto de los campos de la migración 002 (por si aún no se ha ejecutado) */
-export const DOSSIER_EXTRAS_DEFAULTS: DossierExtras = {
-  template: "informe",
-  attention: "",
-  prepared_by: "TÉCNICOS DE AISLASER",
-  issue_place: "Campanario",
-  signer_name: "",
-  show_signature: true,
-};
-
-/** true si la base de datos todavía no tiene los campos de la migración 002 */
-export const needsInformeMigration = (row: object) => !("template" in row);
-
-/** Convierte las filas de Supabase en el objeto Dossier que usa el editor */
-export function hydrateDossier(
-  row: DossierRow,
-  points: Omit<DossierPoint, "images">[],
-  images: Omit<DossierImage, "url">[],
-): Dossier {
-  return {
-    ...DOSSIER_EXTRAS_DEFAULTS,
-    ...row,
-    template: row.template === "portada" ? "portada" : "informe",
-    cover_url: publicImageUrl(row.cover_image_path),
-    points: points
-      .slice()
-      .sort((a, b) => a.position - b.position)
-      .map((p) => ({
-        ...p,
-        images: images
-          .filter((i) => i.point_id === p.id)
-          .sort((a, b) => a.position - b.position)
-          .map((i) => ({ ...i, url: publicImageUrl(i.storage_path)! })),
-      })),
   };
 }

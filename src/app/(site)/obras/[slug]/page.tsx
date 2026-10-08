@@ -7,6 +7,7 @@ import { Gallery } from "@/components/site/Gallery";
 import { PageHero } from "@/components/site/PageHero";
 import { ProjectCard } from "@/components/site/ProjectCard";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { baseOpenGraph } from "@/content/company";
 import { getProject, projects, sectors } from "@/content/projects";
 import { services } from "@/content/services";
 
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: PageProps<"/obras/[slug]">): 
     title: project.title,
     description: `${project.title}${project.location ? ` (${project.location})` : ""}: obra de ${sectors[project.sector].label.toLowerCase()} realizada por Aislaser.`,
     alternates: { canonical: `/obras/${project.slug}` },
-    openGraph: { images: [{ url: project.images[0].src }] },
+    openGraph: { ...baseOpenGraph, title: project.title, images: [{ url: project.images[0].src }] },
   };
 }
 

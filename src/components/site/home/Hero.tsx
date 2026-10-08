@@ -19,7 +19,7 @@ export function Hero() {
         src="/images/site/hero-poliurea-cubierta.webp"
         alt="Operarios de Aislaser proyectando poliurea sobre una cubierta"
         fill
-        priority
+        preload
         sizes="100vw"
         className="-z-20 scale-105 object-cover object-[70%_center] opacity-70"
       />

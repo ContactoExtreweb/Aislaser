@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Mulish } from "next/font/google";
-import { company, siteUrl } from "@/content/company";
+import { baseOpenGraph, company, siteUrl } from "@/content/company";
 import "./globals.css";
 
 const mulish = Mulish({
@@ -37,9 +37,7 @@ export const metadata: Metadata = {
     "Extremadura",
   ],
   openGraph: {
-    type: "website",
-    locale: "es_ES",
-    siteName: "Aislaser",
+    ...baseOpenGraph,
     images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "Aislaser · Impermeabilización con poliurea" }],
   },
   twitter: { card: "summary_large_image" },

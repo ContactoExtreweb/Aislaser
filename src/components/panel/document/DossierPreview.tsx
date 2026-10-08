@@ -18,6 +18,34 @@ function slugify(text: string) {
   );
 }
 
+const TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+const blobToDataUrl = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+/** Descarga una imagen con reintentos (cobertura mala) y la devuelve incrustada */
+async function imageToDataUrl(src: string, tries = 3): Promise<string> {
+  let lastError: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(src, { cache: i ? "reload" : "default" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      if (blob.type && !blob.type.startsWith("image/")) throw new Error("No es una imagen");
+      return await blobToDataUrl(blob);
+    } catch (e) {
+      lastError = e;
+      await new Promise((r) => setTimeout(r, 700 * (i + 1)));
+    }
+  }
+  throw lastError;
+}
+
 function download(url: string, filename: string) {
   const a = document.createElement("a");
   a.href = url;
@@ -38,6 +66,7 @@ export function DossierPreview({ dossier, branding }: { dossier: Dossier; brandi
   const [scale, setScale] = useState(0.7);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   // 1) Medir cada bloque con su tipografía real y 2) repartirlos en hojas A4
   useLayoutEffect(() => {
@@ -73,19 +102,66 @@ export function DossierPreview({ dossier, branding }: { dossier: Dossier; brandi
     const { toJpeg, toPng } = await import("html-to-image");
     const nodes = Array.from(pagesRef.current?.querySelectorAll<HTMLElement>("[data-dossier-page]") ?? []);
     const fontEmbedCSS = await getBrandFontCss();
-    const out: string[] = [];
-    for (let i = 0; i < nodes.length; i++) {
-      onProgress(i + 1, nodes.length);
-      const opts = { pixelRatio: 2, width: PAGE_W, height: PAGE_H, backgroundColor: "#ffffff", fontEmbedCSS, quality: 0.92 };
-      out.push(type === "jpeg" ? await toJpeg(nodes[i], opts) : await toPng(nodes[i], opts));
+
+    // 1) Incrustar todas las fotos antes de capturar: si una falla, el resto del documento sale igual
+    setBusy("Preparando las fotos…");
+    const imgs = nodes.flatMap((n) => Array.from(n.querySelectorAll("img")));
+    const originals = new Map<HTMLImageElement, string>();
+    const bySrc = new Map<string, Promise<string | null>>();
+    const missing: string[] = [];
+    await Promise.all(
+      imgs.map(async (img) => {
+        const src = img.getAttribute("src");
+        if (!src || src.startsWith("data:")) return;
+        if (!bySrc.has(src)) bySrc.set(src, imageToDataUrl(src).catch(() => null));
+        const data = await bySrc.get(src);
+        originals.set(img, src);
+        img.src = data ?? TRANSPARENT_PIXEL;
+        if (!data) missing.push(img.alt || "una foto");
+        await img.decode().catch(() => undefined);
+      }),
+    );
+
+    // 2) Capturar cada hoja
+    try {
+      const out: string[] = [];
+      for (let i = 0; i < nodes.length; i++) {
+        onProgress(i + 1, nodes.length);
+        const opts = {
+          pixelRatio: 2,
+          width: PAGE_W,
+          height: PAGE_H,
+          backgroundColor: "#ffffff",
+          fontEmbedCSS,
+          quality: 0.92,
+          imagePlaceholder: TRANSPARENT_PIXEL,
+          includeQueryParams: true,
+        };
+        out.push(type === "jpeg" ? await toJpeg(nodes[i], opts) : await toPng(nodes[i], opts));
+      }
+      return { images: out, missing: [...new Set(missing)] };
+    } finally {
+      originals.forEach((src, img) => {
+        img.src = src;
+      });
     }
-    return out;
   }
+
+  const reportMissing = (missing: string[]) =>
+    setWarning(
+      missing.length
+        ? `Atención: ${missing.length === 1 ? "no se pudo incluir 1 foto" : `no se pudieron incluir ${missing.length} fotos`} (${missing
+            .slice(0, 3)
+            .join(", ")}${missing.length > 3 ? "…" : ""}). Comprueba la conexión y vuelve a descargar.`
+        : null,
+    );
 
   async function exportPdf() {
     setError(null);
+    setWarning(null);
     try {
-      const images = await renderPages("jpeg", (i, n) => setBusy(`Preparando página ${i} de ${n}…`));
+      const { images, missing } = await renderPages("jpeg", (i, n) => setBusy(`Preparando página ${i} de ${n}…`));
+      reportMissing(missing);
       setBusy("Creando el PDF…");
       const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
@@ -105,8 +181,10 @@ export function DossierPreview({ dossier, branding }: { dossier: Dossier; brandi
 
   async function exportImages() {
     setError(null);
+    setWarning(null);
     try {
-      const images = await renderPages("png", (i, n) => setBusy(`Convirtiendo página ${i} de ${n} en imagen…`));
+      const { images, missing } = await renderPages("png", (i, n) => setBusy(`Convirtiendo página ${i} de ${n} en imagen…`));
+      reportMissing(missing);
       if (images.length === 1) {
         download(images[0], `${baseName}.png`);
       } else {
@@ -146,7 +224,7 @@ export function DossierPreview({ dossier, branding }: { dossier: Dossier; brandi
             </button>
           </div>
         </div>
-        {(busy || error || overflow) && (
+        {(busy || error || warning || overflow) && (
           <div className="mx-auto mt-3 max-w-5xl space-y-2">
             {busy && (
               <p className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-ink-800 shadow-sm">
@@ -154,6 +232,11 @@ export function DossierPreview({ dossier, branding }: { dossier: Dossier; brandi
               </p>
             )}
             {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">{error}</p>}
+            {warning && (
+              <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900" role="alert">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {warning}
+              </p>
+            )}
             {overflow && (
               <p className="flex items-start gap-2 rounded-xl bg-laser-500/15 px-4 py-2.5 text-sm font-semibold text-ink-800">
                 <TriangleAlert className="mt-0.5 size-4 shrink-0" /> Hay un párrafo tan largo que no cabe en una página. Divídelo en varios

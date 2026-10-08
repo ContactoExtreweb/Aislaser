@@ -9,7 +9,7 @@ import { ProjectCard } from "@/components/site/ProjectCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { Eyebrow, SectionHeading } from "@/components/ui/SectionHeading";
 import { ServiceIcon } from "@/components/ui/ServiceIcon";
-import { company } from "@/content/company";
+import { baseOpenGraph, company } from "@/content/company";
 import { getProject } from "@/content/projects";
 import { getService, services } from "@/content/services";
 
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/servicios/[slug]"
     title: service.title,
     description: `${service.summary} ${service.intro[0]}`.slice(0, 300),
     alternates: { canonical: `/servicios/${service.slug}` },
-    openGraph: { images: [{ url: service.image }] },
+    openGraph: { ...baseOpenGraph, title: service.title, images: [{ url: service.image }] },
   };
 }
 

@@ -75,9 +75,17 @@ export type DossierFields = Pick<
 export type Branding = {
   signerName: string;
   signerCompany: string;
-  /** URLs firmadas temporales del bucket privado "firmas" (o null) */
+  /** URLs locales (blob:) de las imágenes del bucket privado "firmas", o null */
   stampUrl: string | null;
   signatureUrl: string | null;
+};
+
+/** Lo que llega del servidor: rutas privadas, que el navegador descarga con la sesión del usuario */
+export type BrandingSource = {
+  signerName: string;
+  signerCompany: string;
+  stampPath: string | null;
+  signaturePath: string | null;
 };
 
 export const DEFAULT_BRANDING: Branding = {

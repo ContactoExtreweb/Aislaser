@@ -69,10 +69,16 @@ export function ResetForm() {
   );
 }
 
-export function NewPasswordForm() {
+export function NewPasswordForm({ fromRecovery = false }: { fromRecovery?: boolean }) {
   const [state, action, pending] = useActionState(updatePassword, {});
   return (
     <form action={action} className="space-y-5">
+      {!fromRecovery && (
+        <label className="block">
+          <span className="text-sm font-bold text-ink-800">Contraseña actual</span>
+          <input name="current" type="password" autoComplete="current-password" required className={authInput} />
+        </label>
+      )}
       <label className="block">
         <span className="text-sm font-bold text-ink-800">Contraseña nueva</span>
         <input name="password" type="password" autoComplete="new-password" minLength={8} required className={authInput} />

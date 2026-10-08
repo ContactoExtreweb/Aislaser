@@ -43,3 +43,10 @@ export const company = {
 } as const;
 
 export const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.aislaser.es").replace(/\/$/, "");
+
+/** Campos Open Graph comunes: las páginas que cambian la imagen deben conservarlos */
+export const baseOpenGraph = {
+  type: "website" as const,
+  locale: "es_ES",
+  siteName: "Aislaser",
+};

@@ -6,31 +6,44 @@ import { ArrowLeft, CircleAlert, CircleCheck, Eye, LoaderCircle, PencilLine, Plu
 import { DossierPreview } from "@/components/panel/document/DossierPreview";
 import { createDemoRepo } from "@/lib/dossier/demo-repo";
 import { createSupabaseRepo } from "@/lib/dossier/supabase-repo";
-import { DEFAULT_BRANDING, type Branding, type Dossier } from "@/lib/dossier/types";
+import type { BrandingSource, Dossier } from "@/lib/dossier/types";
+import { useBranding } from "@/lib/dossier/useBranding";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { ClosingCard, DetailsCard } from "./DetailsCard";
 import { PointCard } from "./PointCard";
-import { useDossierEditor } from "./useDossierEditor";
+import { useDossierEditor, type SaveState } from "./useDossierEditor";
 
 export function DossierWorkspace({
   initial,
   demo = false,
-  branding = DEFAULT_BRANDING,
+  brandingSource = null,
   needsMigration = false,
 }: {
   initial: Dossier;
   demo?: boolean;
-  branding?: Branding;
+  /** Firmante y rutas privadas del sello y la firma (null en la demo) */
+  brandingSource?: BrandingSource | null;
   /** La base de datos aún no tiene los campos del formato informe (migración 002) */
   needsMigration?: boolean;
 }) {
   const repo = useMemo(() => (demo ? createDemoRepo() : createSupabaseRepo(getSupabaseBrowser())), [demo]);
   const api = useDossierEditor(initial, repo);
+  const branding = useBranding(brandingSource);
   const { dossier, save } = api;
   const [tab, setTab] = useState<"editar" | "vista">("editar");
   const [adding, setAdding] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const [sessionLost, setSessionLost] = useState(false);
+
+  // Si la sesión caduca o se cierra en otro dispositivo, avisar en vez de "guardar" en vacío
+  useEffect(() => {
+    if (demo) return;
+    const { data } = getSupabaseBrowser().auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) setSessionLost(true);
+    });
+    return () => data.subscription.unsubscribe();
+  }, [demo]);
 
   useEffect(() => {
     const el = headerRef.current;
@@ -62,14 +75,20 @@ export function DossierWorkspace({
           <Link
             href="/panel"
             className="grid size-10 shrink-0 place-items-center rounded-xl border border-ink-200 text-ink-700 hover:border-ink-900"
-            aria-label="Volver a mis dosieres"
-            onClick={() => api.flush()}
+            aria-label="Volver a mis informes"
+            onClick={(e) => {
+              if (save.failed > 0 && !confirm("Hay cambios que no se han podido guardar todavía. ¿Salir igualmente?")) {
+                e.preventDefault();
+                return;
+              }
+              api.flush();
+            }}
           >
             <ArrowLeft className="size-5" />
           </Link>
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-xl font-bold text-ink-900">{dossier.title || (dossier.template === "informe" ? "Informe sin título" : "Dosier sin título")}</p>
-            <SaveStatus pending={save.pending} error={save.error} demo={demo} />
+            <SaveStatus save={save} demo={demo} onRetry={api.retryAll} />
           </div>
 
           <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -123,6 +142,15 @@ export function DossierWorkspace({
                 <Sparkles className="mt-0.5 size-5 shrink-0" />
                 Modo demostración: puedes probarlo todo (textos, fotos, PDF), pero los cambios no se guardan. Cuando se conecte la base
                 de datos, cada cambio se guardará automáticamente.
+              </p>
+            )}
+            {sessionLost && (
+              <p className="flex flex-wrap items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800" role="alert">
+                <CircleAlert className="size-5 shrink-0" />
+                Tu sesión ha caducado: los cambios nuevos no se pueden guardar.
+                <a href={`/panel/login?next=/panel/dosieres/${dossier.id}`} className="btn-dark !py-2 text-xs">
+                  Volver a entrar
+                </a>
               </p>
             )}
             {needsMigration && (
@@ -192,18 +220,29 @@ export function DossierWorkspace({
   );
 }
 
-function SaveStatus({ pending, error, demo }: { pending: number; error: string | null; demo: boolean }) {
+function SaveStatus({ save, demo, onRetry }: { save: SaveState; demo: boolean; onRetry: () => void }) {
   if (demo) return <p className="text-xs font-semibold text-ink-400">Modo demostración · sin guardar</p>;
-  if (error)
+  if (save.failed > 0)
     return (
-      <p className="flex items-center gap-1.5 text-xs font-bold text-red-600" role="alert">
-        <CircleAlert className="size-3.5" /> No se pudo guardar el último cambio ({error}). Revisa la conexión.
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-bold text-red-600" role="alert">
+        <CircleAlert className="size-3.5" /> {save.failed === 1 ? "1 cambio sin guardar" : `${save.failed} cambios sin guardar`}: se
+        reintentará solo.
+        <button type="button" onClick={onRetry} className="underline underline-offset-2">
+          Reintentar ahora
+        </button>
+        {save.error && <span className="w-full font-semibold text-red-500">{save.error}</span>}
       </p>
     );
-  if (pending > 0)
+  if (save.pending > 0)
     return (
       <p className="flex items-center gap-1.5 text-xs font-semibold text-ink-500">
         <LoaderCircle className="size-3.5 animate-spin" /> Guardando…
+      </p>
+    );
+  if (save.error)
+    return (
+      <p className="flex items-center gap-1.5 text-xs font-bold text-red-600" role="alert">
+        <CircleAlert className="size-3.5" /> No se pudo completar la última acción ({save.error})
       </p>
     );
   return (

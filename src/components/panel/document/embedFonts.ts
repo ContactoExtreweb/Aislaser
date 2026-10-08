@@ -41,6 +41,7 @@ export function getBrandFontCss() {
           const url = match[2];
           if (url.startsWith("data:")) continue;
           const res = await fetch(new URL(url, base));
+          if (!res.ok) throw new Error(`No se pudo cargar la tipografía (${res.status})`);
           css = css.replace(url, await blobToDataUrl(await res.blob()));
         }
         return css;

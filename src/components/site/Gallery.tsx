@@ -67,7 +67,7 @@ export function Gallery({ images, title }: { images: ProjectImage[]; title: stri
           onClick={() => setIndex(null)}
         >
           <div className="relative h-[80vh] w-[92vw] max-w-6xl" onClick={(e) => e.stopPropagation()}>
-            <Image src={images[index].src} alt={`${title}, fotografía ${index + 1}`} fill sizes="92vw" className="object-contain" priority />
+            <Image src={images[index].src} alt={`${title}, fotografía ${index + 1}`} fill sizes="92vw" className="object-contain" fetchPriority="high" />
           </div>
           <p className="absolute top-6 left-6 text-sm font-bold text-white/80">
             {index + 1} / {images.length}

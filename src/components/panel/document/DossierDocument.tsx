@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { LOGO_DARK_PATH, LOGO_VIEWBOX, LOGO_YELLOW_PATH } from "@/components/brand/logo-paths";
 import { company } from "@/content/company";
+import { sanitizedTopLevel } from "@/lib/dossier/sanitize";
 import type { Branding, Dossier, DossierImage, DossierTemplate, ImageLayout } from "@/lib/dossier/types";
 
 /* Medidas de una hoja A4 a 96 ppp (210 × 297 mm) */
@@ -37,7 +38,7 @@ type BlockBase = { key: string; spaceBefore: number; keepWithNext?: boolean; tem
 
 export type Block =
   | (BlockBase & { kind: "addressee"; lines: { label: string; value: string }[]; topGap: number })
-  | (BlockBase & { kind: "title"; title: string })
+  | (BlockBase & { kind: "title"; title: string; topGap: number })
   | (BlockBase & { kind: "point"; number: number; title: string })
   | (BlockBase & { kind: "html"; html: string })
   | (BlockBase & { kind: "images"; images: DossierImage[]; layout: ImageLayout; contentW: number })
@@ -46,14 +47,13 @@ export type Block =
 /** Divide el HTML del editor en párrafos y elementos de lista sueltos para poder paginarlo */
 function splitHtml(html: string, keyPrefix: string, firstSpace: number, template: DossierTemplate, gap: number): Block[] {
   if (!html.trim()) return [];
-  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
-  const root = doc.body.firstElementChild!;
   const blocks: Block[] = [];
   let n = 0;
   const push = (h: string) => {
     blocks.push({ kind: "html", key: `${keyPrefix}-${n++}`, html: h, spaceBefore: blocks.length === 0 ? firstSpace : gap, template });
   };
-  Array.from(root.children).forEach((el) => {
+  // HTML ya limpio: sólo párrafos, listas y formato básico
+  sanitizedTopLevel(html).forEach((el) => {
     const tag = el.tagName.toLowerCase();
     if (tag === "ul" || tag === "ol") {
       const start = Number(el.getAttribute("start") || 1);
@@ -98,8 +98,9 @@ export function buildBlocks(dossier: Dossier, branding: Branding): Block[] {
       { label: "INFORME REALIZADO POR:", value: dossier.prepared_by },
       { label: "PARA:", value: dossier.client_name },
     ].filter((l) => l.value.trim());
-    if (lines.length) blocks.push({ kind: "addressee", key: "addressee", lines, topGap: 46, spaceBefore: 0, template });
-    blocks.push({ kind: "title", key: "title", title: dossier.title, spaceBefore: lines.length ? 18 : 46, template });
+    if (lines.length) blocks.push({ kind: "addressee", key: "addressee", lines, topGap: 49, spaceBefore: 0, template });
+    // Si no hay líneas de cabecera, el hueco bajo el membrete va dentro del propio título
+    blocks.push({ kind: "title", key: "title", title: dossier.title, topGap: lines.length ? 0 : 49, spaceBefore: lines.length ? 12 : 0, template });
   }
 
   blocks.push(...splitHtml(dossier.intro, "intro", blocks.length ? 16 : 0, template, informe ? 10 : 7));
@@ -110,7 +111,7 @@ export function buildBlocks(dossier: Dossier, branding: Branding): Block[] {
       key: `point-${p.id}`,
       number: i + 1,
       title: p.title,
-      spaceBefore: blocks.length ? (informe ? 18 : 34) : 0,
+      spaceBefore: blocks.length ? (informe ? 10 : 34) : 0,
       keepWithNext: true,
       template,
     });
@@ -221,7 +222,7 @@ export function BlockView({ block }: { block: Block }) {
       return (
         <div style={{ ...informeText, paddingTop: block.topGap }}>
           {block.lines.map((l, i) => (
-            <p key={l.label} style={{ margin: i ? "13px 0 0" : 0 }}>
+            <p key={l.label} style={{ margin: i ? "10px 0 0" : 0 }}>
               {l.label}&nbsp; {l.value}
             </p>
           ))}
@@ -230,7 +231,7 @@ export function BlockView({ block }: { block: Block }) {
 
     case "title":
       return (
-        <p style={{ ...informeText, margin: 0, textAlign: "center", fontWeight: 800 }}>
+        <p style={{ ...informeText, margin: 0, paddingTop: block.topGap, textAlign: "center", fontWeight: 800 }}>
           <span style={{ background: HIGHLIGHT, padding: "1px 4px", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
             {block.title || "Título del informe"}
           </span>
@@ -240,7 +241,7 @@ export function BlockView({ block }: { block: Block }) {
     case "point":
       if (informe) {
         return (
-          <div style={{ ...informeText, display: "flex", gap: 16, paddingLeft: 26, fontWeight: 600, textTransform: "uppercase" }}>
+          <div style={{ ...informeText, display: "flex", gap: 16, paddingLeft: 26, fontWeight: 400, textTransform: "uppercase" }}>
             <span style={{ minWidth: 14 }}>{block.number}.</span>
             <span>{block.title || `Punto ${block.number}`}</span>
           </div>
@@ -369,10 +370,13 @@ export function InformePage({ blocks, pageNumber, totalPages }: { blocks: Placed
   return (
     <div data-dossier-page="" style={pageStyle}>
       {/* Membrete */}
-      <div style={{ position: "absolute", top: 14, left: layout.padLeft - 18 }}>
-        <DocLogo height={40} />
-        <p style={{ margin: "12px 0 0 2px", fontSize: 12, color: LETTERHEAD_YELLOW, letterSpacing: "0.01em" }}>{company.letterheadTagline}</p>
+      {/* Posiciones medidas sobre el informe original (logo x≈117 y≈11, lema x≈114 y≈69) */}
+      <div style={{ position: "absolute", top: 10, left: 116 }}>
+        <DocLogo height={39} />
       </div>
+      <p style={{ position: "absolute", top: 67, left: 113, margin: 0, fontSize: 11.5, lineHeight: 1, color: LETTERHEAD_YELLOW, letterSpacing: "0.01em" }}>
+        {company.letterheadTagline}
+      </p>
       {totalPages > 1 && (
         <p style={{ position: "absolute", top: 44, right: layout.padLeft, margin: 0, fontSize: 9.5, color: "#9f9a99" }}>
           Página {pageNumber} de {totalPages}
@@ -383,12 +387,12 @@ export function InformePage({ blocks, pageNumber, totalPages }: { blocks: Placed
       <p
         style={{
           position: "absolute",
-          left: 52,
-          top: 575,
+          left: 54,
+          top: 610,
           margin: 0,
           transform: "translate(-50%, -50%) rotate(-90deg)",
           whiteSpace: "nowrap",
-          fontSize: 9.5,
+          fontSize: 9,
           color: "#1f3864",
           letterSpacing: "0.02em",
         }}

@@ -125,7 +125,7 @@ export default async function PanelHome({ searchParams }: PageProps<"/panel">) {
                     <p className="text-xs font-semibold text-ink-400">
                       {points} puntos · {photos} fotos
                       <br />
-                      {d.work_date ? formatDate(d.work_date) : `Editado ${new Date(d.updated_at).toLocaleDateString("es-ES")}`}
+                      {d.work_date ? formatDate(d.work_date) : `Editado ${new Date(d.updated_at).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}`}
                     </p>
                     <DossierActions id={d.id} title={d.title} />
                   </div>

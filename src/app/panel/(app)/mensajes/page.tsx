@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inbox, Mail, Phone } from "lucide-react";
 import { MessageActions } from "@/components/panel/MessageActions";
 import { services } from "@/content/services";
+import { SAFE_EMAIL } from "@/lib/email";
 import { getSupabaseServer } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Mensajes" };
@@ -55,12 +56,18 @@ export default async function MensajesPage() {
               </div>
               {m.message && <p className="mt-4 whitespace-pre-line text-ink-700">{m.message}</p>}
               <div className="mt-5 flex flex-wrap gap-2">
-                <a href={`tel:${m.phone.replace(/\s/g, "")}`} className="flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2 text-sm font-bold text-white">
+                <a href={`tel:${m.phone.replace(/[^\d+]/g, "")}`} className="flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2 text-sm font-bold text-white">
                   <Phone className="size-4 text-laser-500" /> {m.phone}
                 </a>
-                <a href={`mailto:${m.email}`} className="flex items-center gap-2 rounded-xl border border-ink-200 px-4 py-2 text-sm font-bold text-ink-800 hover:border-ink-900">
-                  <Mail className="size-4" /> {m.email}
-                </a>
+                {SAFE_EMAIL.test(m.email) ? (
+                  <a href={`mailto:${m.email}`} className="flex items-center gap-2 rounded-xl border border-ink-200 px-4 py-2 text-sm font-bold text-ink-800 hover:border-ink-900">
+                    <Mail className="size-4" /> {m.email}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-700" title="Email con formato sospechoso: no se enlaza">
+                    <Mail className="size-4" /> {m.email}
+                  </span>
+                )}
               </div>
             </li>
           ))}

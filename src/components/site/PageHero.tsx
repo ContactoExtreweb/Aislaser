@@ -22,7 +22,7 @@ export function PageHero({
 }) {
   return (
     <section className="relative isolate overflow-hidden bg-ink-950 pt-36 pb-20 text-white lg:pt-44 lg:pb-28">
-      <Image src={image} alt="" fill priority sizes="100vw" className="-z-20 object-cover opacity-45" />
+      <Image src={image} alt="" fill preload sizes="100vw" className="-z-20 object-cover opacity-45" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-ink-950 via-ink-950/85 to-ink-950/30" />
       <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink-950/80 to-transparent" />
       <div className="bg-grid-dark absolute inset-0 -z-10 [mask-image:linear-gradient(to_right,black,transparent_75%)]" />

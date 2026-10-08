@@ -203,4 +203,6 @@
     border-radius: 0 !important;
   }
   .dossier-page-scaler { transform: none !important; }
+  /* Sin esto el navegador no imprime fondos: se perdería el resaltado del título y las franjas */
+  #dossier-pages, #dossier-pages * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

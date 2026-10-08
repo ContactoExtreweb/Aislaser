@@ -1,0 +1,14 @@
+# Despliegue en Netlify (detecta Next.js y usa su adaptador oficial automáticamente)
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+  # Supabase: la "publishable key" es pública por diseño (va en el JavaScript de la web);
+  # los datos están protegidos por las reglas RLS de la base de datos.
+  NEXT_PUBLIC_SUPABASE_URL = "https://wbduknkauzvmgszmfbne.supabase.co"
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_wYSVl_8YNZ6belsHY-L8aw_fZqHjQZf"
+  # Dominio definitivo (para SEO, sitemap y enlaces canónicos)
+  NEXT_PUBLIC_SITE_URL = "https://www.aislaser.es"

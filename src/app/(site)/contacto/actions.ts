@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
+import { SAFE_EMAIL } from "@/lib/email";
 import { isSupabaseConfigured, supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
 export type ContactState = {
@@ -28,7 +29,7 @@ export async function sendContact(_prev: ContactState, formData: FormData): Prom
   const fieldErrors: ContactState["fieldErrors"] = {};
   if (!name) fieldErrors.name = "Indica tu nombre";
   if (phone.replace(/\D/g, "").length < 9) fieldErrors.phone = "Indica un teléfono válido";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fieldErrors.email = "Indica un email válido";
+  if (!SAFE_EMAIL.test(email)) fieldErrors.email = "Indica un email válido";
   if (!privacy) fieldErrors.privacy = "Debes aceptar la política de privacidad";
   if (Object.keys(fieldErrors).length) {
     return { status: "error", message: "Revisa los campos marcados.", fieldErrors, values };
@@ -46,6 +47,9 @@ export async function sendContact(_prev: ContactState, formData: FormData): Prom
   const { error } = await supabase.from("contact_messages").insert({ name, phone, email, service, message });
   if (error) {
     console.error("contact_messages insert", error);
+    if (error.message.includes("Demasiados mensajes")) {
+      return { status: "error", message: "Ahora mismo hay demasiados envíos. Inténtalo en unos minutos o llámanos al 609 005 163.", values };
+    }
     return {
       status: "error",
       message: "No hemos podido enviar tu mensaje. Inténtalo de nuevo o llámanos al 609 005 163.",

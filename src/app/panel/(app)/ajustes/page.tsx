@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Ajustes" };
 
 export default async function AjustesPage() {
   const supabase = await getSupabaseServer();
-  const { settings, branding } = await getBranding(supabase);
+  const { settings } = await getBranding(supabase);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
@@ -16,7 +16,7 @@ export default async function AjustesPage() {
       <h1 className="mt-2 text-5xl font-bold">Ajustes</h1>
       <div className="mt-8">
         {settings ? (
-          <SettingsForm settings={settings} stampUrl={branding.stampUrl} signatureUrl={branding.signatureUrl} />
+          <SettingsForm settings={settings} />
         ) : (
           <p className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 font-semibold text-red-800" role="alert">
             <CircleAlert className="mt-0.5 size-5 shrink-0" />

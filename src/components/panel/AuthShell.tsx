@@ -6,7 +6,7 @@ export function AuthShell({ title, intro, children }: { title: string; intro?: s
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       <div className="relative hidden overflow-hidden bg-ink-950 lg:block">
-        <Image src="/images/site/hero-poliurea-cubierta.webp" alt="" fill priority sizes="50vw" className="object-cover opacity-50" />
+        <Image src="/images/site/hero-poliurea-cubierta.webp" alt="" fill preload sizes="50vw" className="object-cover opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/40 to-ink-950/60" />
         <div className="bg-grid-dark absolute inset-0" />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">

@@ -6,6 +6,7 @@ import { CircleAlert, CircleCheck, ImageOff, KeyRound, LoaderCircle, RefreshCw, 
 import Link from "next/link";
 import { prepareImage, imageFilesFrom } from "@/lib/dossier/image";
 import type { AppSettings } from "@/lib/dossier/branding";
+import { useBranding } from "@/lib/dossier/useBranding";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { SIGNATURE_BUCKET } from "@/lib/supabase/env";
 import { ImageDropzone } from "./editor/ImageDropzone";
@@ -16,8 +17,15 @@ const column: Record<Kind, "stamp_path" | "signature_path"> = { stamp: "stamp_pa
 const field =
   "mt-1.5 w-full rounded-xl border border-ink-200 bg-white px-3.5 py-3 text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-ink-900 focus:ring-4 focus:ring-laser-500/25";
 
-export function SettingsForm({ settings, stampUrl, signatureUrl }: { settings: AppSettings; stampUrl: string | null; signatureUrl: string | null }) {
+export function SettingsForm({ settings }: { settings: AppSettings }) {
   const router = useRouter();
+  // Las imágenes se descargan con la sesión (bucket privado), nunca con enlaces públicos
+  const { stampUrl, signatureUrl } = useBranding({
+    signerName: settings.signer_name,
+    signerCompany: settings.signer_company,
+    stampPath: settings.stamp_path,
+    signaturePath: settings.signature_path,
+  });
   const [signerName, setSignerName] = useState(settings.signer_name);
   const [signerCompany, setSignerCompany] = useState(settings.signer_company);
   const [busy, setBusy] = useState<Kind | "names" | null>(null);
@@ -101,7 +109,7 @@ export function SettingsForm({ settings, stampUrl, signatureUrl }: { settings: A
         <h2 className="text-3xl font-bold">Sello y firma</h2>
         <p className="mt-1 text-ink-500">
           Se colocan al final de cada informe, encima de «FDO: …». Sirve una foto o un escaneo sobre fondo blanco; si tienes un PNG con fondo
-          transparente, mejor. Se guardan en un almacén privado: sólo se ven dentro del panel y en los documentos que descargues.
+          transparente, mejor. Se guardan en un almacén privado: sólo se ven con tu sesión dentro del panel y en los documentos que descargues.
         </p>
         <div className="mt-6 grid gap-5 sm:grid-cols-2">
           <ImageSlot title="Sello de la empresa" url={stampUrl} busy={busy === "stamp"} onFile={(f) => upload("stamp", f)} onRemove={() => remove("stamp")} />
