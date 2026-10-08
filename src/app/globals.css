@@ -166,3 +166,41 @@
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: none; }
 }
+
+/* Texto enriquecido del editor de dosieres y del documento generado */
+.dossier-richtext p { margin: 0 0 0.65em; }
+.dossier-richtext p:last-child { margin-bottom: 0; }
+.dossier-richtext ul { list-style: disc; padding-left: 1.35em; margin: 0 0 0.65em; }
+.dossier-richtext ol { list-style: decimal; padding-left: 1.45em; margin: 0 0 0.65em; }
+.dossier-richtext li { margin: 0.15em 0; }
+.dossier-richtext li p { margin: 0; }
+.dossier-richtext li::marker { color: var(--color-ink-500); font-weight: 700; }
+.dossier-richtext strong { color: var(--color-ink-900); font-weight: 800; }
+.dossier-richtext u { text-underline-offset: 2px; }
+.prose-editor { color: var(--color-ink-800); font-size: 1rem; line-height: 1.65; }
+.prose-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-ink-400);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Impresión de dosieres: cada hoja A4 en una página, sin nada más del panel */
+@media print {
+  @page { size: A4; margin: 0; }
+  html, body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
+  body * { visibility: hidden; }
+  #dossier-pages, #dossier-pages * { visibility: visible; }
+  #dossier-pages { position: absolute; top: 0; left: 0; width: 210mm; margin: 0 !important; }
+  #dossier-pages > * + * { margin-top: 0 !important; }
+  .dossier-page-outer { break-after: page; break-inside: avoid; }
+  .dossier-page-outer:last-child { break-after: auto; }
+  .dossier-page-box {
+    width: 210mm !important;
+    height: 296.5mm !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  .dossier-page-scaler { transform: none !important; }
+}

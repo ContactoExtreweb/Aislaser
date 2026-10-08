@@ -26,6 +26,7 @@ export function ContactForm({ defaultService = "" }: { defaultService?: string }
   }
 
   const err = state.fieldErrors ?? {};
+  const v = state.values;
   const input =
     "mt-2 w-full rounded-2xl border bg-white px-4 py-3.5 text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-ink-900 focus:ring-4 focus:ring-laser-500/30";
 
@@ -34,22 +35,22 @@ export function ContactForm({ defaultService = "" }: { defaultService?: string }
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="block">
           <span className="text-sm font-bold text-ink-800">Nombre *</span>
-          <input name="name" autoComplete="name" required className={`${input} ${err.name ? "border-red-500" : "border-ink-200"}`} placeholder="Tu nombre o empresa" />
+          <input name="name" defaultValue={v?.name} autoComplete="name" required className={`${input} ${err.name ? "border-red-500" : "border-ink-200"}`} placeholder="Tu nombre o empresa" />
           {err.name && <span className="mt-1 block text-sm text-red-600">{err.name}</span>}
         </label>
         <label className="block">
           <span className="text-sm font-bold text-ink-800">Teléfono *</span>
-          <input name="phone" type="tel" autoComplete="tel" required className={`${input} ${err.phone ? "border-red-500" : "border-ink-200"}`} placeholder="600 000 000" />
+          <input name="phone" defaultValue={v?.phone} type="tel" autoComplete="tel" required className={`${input} ${err.phone ? "border-red-500" : "border-ink-200"}`} placeholder="600 000 000" />
           {err.phone && <span className="mt-1 block text-sm text-red-600">{err.phone}</span>}
         </label>
         <label className="block">
           <span className="text-sm font-bold text-ink-800">Email *</span>
-          <input name="email" type="email" autoComplete="email" required className={`${input} ${err.email ? "border-red-500" : "border-ink-200"}`} placeholder="tu@email.com" />
+          <input name="email" defaultValue={v?.email} type="email" autoComplete="email" required className={`${input} ${err.email ? "border-red-500" : "border-ink-200"}`} placeholder="tu@email.com" />
           {err.email && <span className="mt-1 block text-sm text-red-600">{err.email}</span>}
         </label>
         <label className="block">
           <span className="text-sm font-bold text-ink-800">¿Qué necesitas?</span>
-          <select name="service" defaultValue={defaultService} className={`${input} border-ink-200`}>
+          <select name="service" key={v?.service ?? defaultService} defaultValue={v?.service ?? defaultService} className={`${input} border-ink-200`}>
             <option value="">Selecciona un servicio</option>
             {services.map((s) => (
               <option key={s.slug} value={s.slug}>
@@ -61,7 +62,7 @@ export function ContactForm({ defaultService = "" }: { defaultService?: string }
         </label>
         <label className="block sm:col-span-2">
           <span className="text-sm font-bold text-ink-800">Cuéntanos en qué te podemos ayudar</span>
-          <textarea name="message" rows={5} className={`${input} resize-y border-ink-200`} placeholder="Tipo de superficie, metros aproximados, ubicación de la obra, plazos…" />
+          <textarea name="message" defaultValue={v?.message} rows={5} className={`${input} resize-y border-ink-200`} placeholder="Tipo de superficie, metros aproximados, ubicación de la obra, plazos…" />
         </label>
       </div>
 
@@ -73,7 +74,7 @@ export function ContactForm({ defaultService = "" }: { defaultService?: string }
       </div>
 
       <label className="mt-6 flex items-start gap-3 text-sm text-ink-600">
-        <input name="privacy" type="checkbox" className="mt-0.5 size-5 shrink-0 accent-ink-900" />
+        <input name="privacy" type="checkbox" defaultChecked={v?.privacy} className="mt-0.5 size-5 shrink-0 accent-ink-900" />
         <span>
           He leído y acepto el{" "}
           <Link href="/aviso-legal" className="font-bold text-ink-900 underline underline-offset-2">
