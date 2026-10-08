@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 
 export default async function ObrasPage() {
   const projects = await getProjects();
+  const photos = projects.reduce((n, p) => n + p.images.length, 0);
   return (
     <>
       <PageHero
@@ -22,7 +23,11 @@ export default async function ObrasPage() {
         image="/images/site/banner-terminal.webp"
         crumbs={[{ label: "Obras" }]}
       >
-        <p className="mt-8 text-sm font-bold text-ink-400">{projects.length} obras · {projects.reduce((n, p) => n + p.images.length, 0)} fotografías</p>
+        {projects.length > 0 && (
+          <p className="mt-8 text-sm font-bold text-ink-400">
+            {projects.length === 1 ? "1 obra" : `${projects.length} obras`} · {photos === 1 ? "1 fotografía" : `${photos} fotografías`}
+          </p>
+        )}
       </PageHero>
       <section className="py-20 lg:py-28">
         <div className="container-x">

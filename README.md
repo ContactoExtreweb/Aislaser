@@ -130,7 +130,7 @@ Las fotos se guardan en el bucket público `galeria` y la web las lee con la cla
 ADMIN_EMAIL=correo@del.admin ADMIN_PASSWORD=… node scripts/importar-obras.mjs   # --simular para ver qué haría
 ```
 
-Sólo importa si la galería está vacía (crea todas las obras de una vez y las publica juntas al final), así que repetirlo nunca recupera obras borradas en el panel. Si una importación se cortó, `--completar` crea las que falten, sube las fotos que falten y publica las importadas; úsalo sólo justo después del corte, no tras editar la galería. Necesita Node 22.18 o posterior (con Node 22.6–22.17: `node --experimental-strip-types scripts/importar-obras.mjs`).
+Sólo importa si la galería está vacía (crea todas las obras de una vez y las publica juntas al final), así que repetirlo nunca recupera obras borradas en el panel. Sólo publica cuando están todas las obras y fotos. Si la importación se cortó (no queda nada publicado), `--completar` crea las que falten, sube las fotos que falten y publica; en cuanto hay obras publicadas o editadas en el panel se niega a tocar nada. Necesita Node 22.18 o posterior (con Node 22.6–22.17: `node --experimental-strip-types scripts/importar-obras.mjs`).
 
 ## 6. Pendiente de revisar con el cliente
 

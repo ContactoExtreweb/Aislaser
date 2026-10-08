@@ -19,11 +19,6 @@ const root = new URL("../", import.meta.url);
 const simulate = process.argv.includes("--simular");
 const completeOnly = process.argv.includes("--completar");
 
-// Los datos están en TypeScript: Node los lee quitando los tipos (de serie desde Node 22.18)
-if (process.features.typescript === false) {
-  console.error("Hace falta Node 22.18 o posterior, o ejecutarlo así: node --experimental-strip-types scripts/importar-obras.mjs");
-  process.exit(1);
-}
 
 // Variables públicas de Supabase: del entorno o de .env.local
 async function env(name) {
@@ -37,8 +32,16 @@ const { ADMIN_EMAIL: email, ADMIN_PASSWORD: password } = process.env;
 if (!url || !key) throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.");
 if (!email || !password) throw new Error("Indica ADMIN_EMAIL y ADMIN_PASSWORD de un administrador del panel.");
 
-const { projects } = await import(new URL("src/content/projects.ts", root).href);
-const { services } = await import(new URL("src/content/services.ts", root).href);
+// Los datos están en TypeScript: Node los lee quitando los tipos (de serie desde Node 22.18)
+let projects, services;
+try {
+  ({ projects } = await import(new URL("src/content/projects.ts", root).href));
+  ({ services } = await import(new URL("src/content/services.ts", root).href));
+} catch (e) {
+  if (e?.code !== "ERR_UNKNOWN_FILE_EXTENSION") throw e;
+  console.error("Hace falta Node 22.18 o posterior (con Node 22.6–22.17: node --experimental-strip-types scripts/importar-obras.mjs).");
+  process.exit(1);
+}
 
 const supabase = createClient(url, key, { auth: { persistSession: false } });
 const BUCKET = "galeria";
@@ -58,18 +61,23 @@ const done = async (code = problems.length ? 1 : 0) => {
   process.exit(code);
 };
 
-if (existing.length > 0 && !completeOnly) {
-  console.log(
-    `La galería ya tiene ${existing.length} obras: no se importa nada para no recuperar obras borradas ni pisar lo editado en el panel.\n` +
-      "Si una importación anterior se cortó, usa --completar.",
-  );
-  await done(0);
-}
-
 const staticSlugs = new Set(projects.map((p) => p.slug));
 const isImported = (o) => staticSlugs.has(o.slug) && o.web_fotos.every((f) => f.storage_path.includes("/importada-"));
-if (completeOnly && !existing.every(isImported)) {
-  console.log("La galería ya tiene obras creadas o editadas en el panel: --completar no se puede usar sin riesgo de pisarlas.");
+
+// Una importación cortada se reconoce porque sólo tiene obras importadas y ninguna publicada
+// (se publican todas juntas al final). En cuanto hay algo publicado o editado en el panel,
+// el script no toca nada: así nunca vuelve a publicar lo que se quitó ni recupera lo borrado.
+const interrupted = existing.length > 0 && existing.every(isImported) && !existing.some((o) => o.publicada);
+if (existing.length > 0 && !completeOnly) {
+  console.log(`La galería ya tiene ${existing.length} obras: no se importa nada para no recuperar obras borradas ni pisar lo editado en el panel.`);
+  if (interrupted) {
+    console.log("Parece una importación que se cortó (ninguna obra publicada): repite con --completar.");
+    await done(1);
+  }
+  await done(0);
+}
+if (completeOnly && existing.length > 0 && !interrupted) {
+  console.log("La galería ya tiene obras publicadas o editadas en el panel: --completar sólo sirve para terminar una importación cortada.");
   await done(1);
 }
 
@@ -116,7 +124,7 @@ for (const p of projects) {
     // Las fotos se suben tal cual (WebP), sin volver a comprimirlas
     const { error: upError } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { contentType: "image/webp", cacheControl: "31536000", upsert: false });
+      .upload(path, file, { contentType: "image/webp", cacheControl: "86400", upsert: false });
     if (upError && !/exists|duplicate/i.test(upError.message)) {
       problems.push(`${p.slug} ${name}: ${upError.message}`);
       continue;
@@ -129,14 +137,22 @@ for (const p of projects) {
   }
 }
 
-// 3. Publicar todas juntas las importadas que tengan fotos (para que la web nunca enseñe una lista a medias)
-if (!simulate) {
-  const { data: drafts, error } = await supabase.from("web_obras").select("id, slug, web_fotos(count)").eq("publicada", false);
+// 3. Publicar todas juntas, y sólo si está todo (obras y fotos): la web nunca enseña una lista a medias
+if (simulate) {
+  console.log(`[simulación] Se publicarían las ${projects.length} obras importadas al terminar sin errores.`);
+} else if (problems.length) {
+  problems.push("No se ha publicado nada: todo queda en borrador. Repite con --completar cuando vuelva la conexión.");
+} else {
+  const { data: rows, error } = await supabase.from("web_obras").select("id, slug, web_fotos(storage_path)");
   if (error) problems.push(`No se pudo comprobar qué publicar: ${error.message}`);
-  const ready = (drafts ?? []).filter((o) => staticSlugs.has(o.slug) && (o.web_fotos[0]?.count ?? 0) > 0).map((o) => o.id);
-  (drafts ?? []).filter((o) => staticSlugs.has(o.slug) && !(o.web_fotos[0]?.count > 0)).forEach((o) => problems.push(`${o.slug}: sin fotos, se queda en borrador`));
-  if (ready.length) {
-    const { error: pubError } = await supabase.from("web_obras").update({ publicada: true }).in("id", ready);
+  const complete = projects.every((p) => {
+    const o = (rows ?? []).find((r) => r.slug === p.slug);
+    return o && o.web_fotos.length >= p.images.length;
+  });
+  if (!error && !complete) problems.push("Faltan obras o fotos: no se ha publicado nada. Repite con --completar.");
+  if (!error && complete) {
+    const ids = (rows ?? []).filter((r) => staticSlugs.has(r.slug)).map((r) => r.id);
+    const { error: pubError } = await supabase.from("web_obras").update({ publicada: true }).in("id", ids);
     if (pubError) problems.push(`No se pudieron publicar: ${pubError.message} (quedan en borrador; repite con --completar)`);
   }
 }

@@ -431,7 +431,7 @@ create policy "web_fotos: admins" on public.web_fotos
 -- ---------------------------------------------------------------------
 -- Storage: bucket público «galeria» (las fotos se sirven por URL sin sesión).
 -- JPEG o WebP de hasta 5 MB (el panel las comprime antes de subirlas).
--- Sin política de update: las fotos no se sobrescriben, así que se cachean un año.
+-- Sin política de update: las fotos no se sobrescriben nunca (cada una tiene su propia ruta).
 -- ---------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('galeria', 'galeria', true, 5242880, array['image/jpeg', 'image/webp'])

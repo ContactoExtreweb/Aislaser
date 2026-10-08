@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { unstable_rethrow, useRouter } from "next/navigation";
+import { unstable_isUnrecognizedActionError, unstable_rethrow } from "next/navigation";
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import {
   AlertTriangle,
@@ -45,8 +45,11 @@ const card = "rounded-[1.75rem] border border-ink-200 bg-white shadow-[0_20px_50
 /** Las fotos de la web se guardan a 2000 px como mucho: nítidas en pantalla grande y ligeras */
 const MAX_SIDE = 2000;
 
-/** Si una Server Action no llega (sin conexión, web recién actualizada…) */
-const NETWORK_ERROR = "No se ha podido conectar. Comprueba la conexión y vuelve a intentarlo; lo escrito sigue aquí.";
+/** Si una Server Action no llega (sin conexión, panel recién actualizado…) */
+const actionFailed = (e: unknown) =>
+  unstable_isUnrecognizedActionError(e)
+    ? "El panel se ha actualizado mientras trabajabas: recarga la página (lo escrito se recupera con «Recuperarlos»)."
+    : "No se ha podido conectar. Comprueba la conexión y vuelve a intentarlo; lo escrito sigue aquí.";
 
 const errorText = (e: unknown) => {
   const msg = e instanceof Error ? e.message : String(e);
@@ -105,7 +108,6 @@ function sameAsSaved(d: Draft, o: WebObra) {
 }
 
 export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: WebFoto[] }) {
-  const router = useRouter();
   const [upload, setUpload] = useState<{ done: number; total: number } | null>(null);
   const uploadingRef = useRef(false);
   const [photoErrors, setPhotoErrors] = useState<string[]>([]);
@@ -140,8 +142,12 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
         // circular pronto (la web la sirve a través de su propio optimizador de imágenes)
         const { error } = await bucket.upload(path, blob, { contentType: "image/jpeg", cacheControl: "86400", upsert: false });
         if (error) throw new Error(error.message);
-        const result = await addObraPhoto(obra.id, path, width, height);
-        if (result.error) throw new Error(result.error);
+        // Registrar la foto (refresca la ficha); si no se puede, no dejar el archivo suelto
+        const result = await addObraPhoto(obra.id, path, width, height).catch((e: unknown) => ({ error: actionFailed(e) }));
+        if (result.error) {
+          await bucket.remove([path]).catch(() => {});
+          throw new Error(result.error);
+        }
       } catch (e) {
         const msg = errorText(e);
         failed.push(msg.startsWith("«") ? msg : `${file.name || `Foto ${done + 1}`}: ${msg}`);
@@ -152,7 +158,8 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
     uploadingRef.current = false;
     setUpload(null);
     setPhotoErrors(failed);
-    router.refresh();
+    // Sin router.refresh(): cada foto registrada ya refresca la ficha, y con la sesión caducada
+    // un refresco llevaría al login y se perdería lo escrito
   }
 
   // Pegar fotos con Ctrl+V en cualquier parte de la ficha
@@ -189,7 +196,7 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
         if (result.error) setPhotoErrors([result.error]);
       } catch (e) {
         unstable_rethrow(e);
-        setPhotoErrors([NETWORK_ERROR]);
+        setPhotoErrors([actionFailed(e)]);
       }
     });
 
@@ -201,8 +208,8 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
       const result = await updateObraPhotoAlt(id, alt);
       if (result.error) setPhotoErrors([result.error]);
       else altPendingRef.current.delete(id);
-    } catch {
-      setPhotoErrors([NETWORK_ERROR]);
+    } catch (e) {
+      setPhotoErrors([actionFailed(e)]);
     }
   };
 
@@ -260,11 +267,21 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
         e.stopPropagation();
       }
     };
+    // «Salir» del menú es un formulario: también se pregunta
+    const onSubmitElsewhere = (e: SubmitEvent) => {
+      if (!pending() || e.target === formRef.current) return;
+      if (!confirm("Hay cambios sin guardar o fotos subiéndose. ¿Salir igualmente?")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
     window.addEventListener("beforeunload", warn);
     document.addEventListener("click", onClick, true);
+    document.addEventListener("submit", onSubmitElsewhere, true);
     return () => {
       window.removeEventListener("beforeunload", warn);
       document.removeEventListener("click", onClick, true);
+      document.removeEventListener("submit", onSubmitElsewhere, true);
     };
   }, []);
 
@@ -330,7 +347,7 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
         }
       } catch (err) {
         unstable_rethrow(err);
-        setResult({ error: NETWORK_ERROR });
+        setResult({ error: actionFailed(err) });
       }
     });
   }
@@ -338,7 +355,8 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
   // Intro en un campo de texto guarda sin cambiar el estado. Sin esto, el navegador «pulsaría»
   // el primer botón del formulario, que en un borrador es «Guardar y publicar»
   function onFormKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
-    if (e.key !== "Enter" || !(e.target instanceof HTMLInputElement) || e.target.type === "checkbox") return;
+    const t = e.target;
+    if (e.key !== "Enter" || e.nativeEvent.isComposing || t instanceof HTMLTextAreaElement || t instanceof HTMLButtonElement) return;
     e.preventDefault();
     intentRef.current = "save";
     formRef.current?.requestSubmit();
@@ -657,7 +675,7 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
                 if (r?.error) setDeleteError(r.error);
               } catch (err) {
                 unstable_rethrow(err);
-                setDeleteError(NETWORK_ERROR);
+                setDeleteError(actionFailed(err));
               }
             });
           }}

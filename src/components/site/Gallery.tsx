@@ -29,6 +29,12 @@ export function Gallery({ images, title }: { images: ProjectImage[]; title: stri
     };
   }, [open, go]);
 
+  // Con un número impar de fotos, una ocupa las dos columnas para no dejar hueco: la primera si
+  // es horizontal; si no, la última (empieza fila nueva). Una sola foto siempre va a lo ancho.
+  const isLandscape = (img: ProjectImage) => img.width >= img.height;
+  const n = images.length;
+  const wideIndex = n % 2 === 0 ? -1 : n === 1 || isLandscape(images[0]) ? 0 : isLandscape(images[n - 1]) ? n - 1 : -1;
+
   return (
     <>
       {/* Las fotografías de la web anterior son de 720 px: rejilla a 2 columnas para no ampliarlas en exceso */}
@@ -36,7 +42,7 @@ export function Gallery({ images, title }: { images: ProjectImage[]; title: stri
         {images.map((img, i) => {
           // Las fotos verticales (las del móvil) se enseñan enteras, sin recortar, sobre fondo oscuro
           const portrait = img.height > img.width;
-          const wide = i === 0 && images.length % 2 === 1 && !portrait;
+          const wide = i === wideIndex;
           return (
             <button
               key={img.src}
