@@ -31,7 +31,7 @@ export function Gallery({ images, title }: { images: ProjectImage[]; title: stri
 
   return (
     <>
-      {/* Las fotografías originales son de 720 px: rejilla a 2 columnas para no ampliarlas en exceso */}
+      {/* Las fotografías de la web anterior son de 720 px: rejilla a 2 columnas para no ampliarlas en exceso */}
       <div className="grid gap-4 sm:grid-cols-2">
         {images.map((img, i) => (
           <button
@@ -45,7 +45,7 @@ export function Gallery({ images, title }: { images: ProjectImage[]; title: stri
           >
             <Image
               src={img.src}
-              alt={`${title}, fotografía ${i + 1}`}
+              alt={img.alt || `${title}, fotografía ${i + 1}`}
               fill
               sizes={i === 0 && images.length % 2 === 1 ? "(min-width: 1280px) 1200px, 100vw" : "(min-width: 1280px) 600px, (min-width: 640px) 50vw, 100vw"}
               className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -67,7 +67,7 @@ export function Gallery({ images, title }: { images: ProjectImage[]; title: stri
           onClick={() => setIndex(null)}
         >
           <div className="relative h-[80vh] w-[92vw] max-w-6xl" onClick={(e) => e.stopPropagation()}>
-            <Image src={images[index].src} alt={`${title}, fotografía ${index + 1}`} fill sizes="92vw" className="object-contain" fetchPriority="high" />
+            <Image src={images[index].src} alt={images[index].alt || `${title}, fotografía ${index + 1}`} fill sizes="92vw" className="object-contain" fetchPriority="high" />
           </div>
           <p className="absolute top-6 left-6 text-sm font-bold text-white/80">
             {index + 1} / {images.length}

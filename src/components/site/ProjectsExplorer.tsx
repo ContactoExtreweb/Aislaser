@@ -2,23 +2,24 @@
 
 import { useMemo, useState } from "react";
 import { ProjectCard } from "@/components/site/ProjectCard";
-import { projects, sectors, type Sector } from "@/content/projects";
+import { sectors, type Project, type Sector } from "@/content/projects";
 
 type Filter = Sector | "todas";
 
-export function ProjectsExplorer() {
+export function ProjectsExplorer({ projects }: { projects: Project[] }) {
   const [filter, setFilter] = useState<Filter>("todas");
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { todas: projects.length };
     projects.forEach((p) => (c[p.sector] = (c[p.sector] ?? 0) + 1));
     return c;
-  }, []);
+  }, [projects]);
 
   const visible = filter === "todas" ? projects : projects.filter((p) => p.sector === filter);
   const options: { value: Filter; label: string }[] = [
     { value: "todas", label: "Todas" },
-    ...(Object.keys(sectors) as Sector[]).map((s) => ({ value: s, label: sectors[s].short })),
+    // Sólo los sectores que tienen alguna obra publicada
+    ...(Object.keys(sectors) as Sector[]).filter((s) => counts[s]).map((s) => ({ value: s, label: sectors[s].short })),
   ];
 
   return (

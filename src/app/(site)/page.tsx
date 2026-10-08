@@ -9,22 +9,24 @@ import { Process } from "@/components/site/home/Process";
 import { ReferenceMarquee } from "@/components/site/home/ReferenceMarquee";
 import { ServicesBento } from "@/components/site/home/ServicesBento";
 import { VideoSection } from "@/components/site/home/VideoSection";
+import { getProjects, pickFeatured } from "@/lib/obras";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const projects = await getProjects();
   return (
     <>
-      <Hero />
-      <ReferenceMarquee />
+      <Hero highlight={pickFeatured(projects, 1)[0]} />
+      <ReferenceMarquee projects={projects} />
       <Intro />
       <ServicesBento />
       <PolyureaSection />
       <Process />
       <Audience />
-      <FeaturedProjects />
+      <FeaturedProjects projects={projects} />
       <VideoSection />
       <CtaBand />
     </>

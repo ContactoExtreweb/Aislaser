@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/content/company";
-import { projects } from "@/content/projects";
 import { services } from "@/content/services";
+import { getProjects } from "@/lib/obras";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const projects = await getProjects();
   return [
     { url: `${siteUrl}/`, lastModified: now, changeFrequency: "monthly", priority: 1 },
     { url: `${siteUrl}/empresa`, lastModified: now, priority: 0.7 },

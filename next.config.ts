@@ -18,10 +18,20 @@ const legacyRedirects = [
   })),
 ].map((r) => ({ ...r, permanent: true }));
 
+// Fotos de las obras que se suben desde el panel (bucket público «galeria» de Supabase)
+const supabaseHost = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname;
+  } catch {
+    return "*.supabase.co";
+  }
+})();
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
     formats: ["image/avif", "image/webp"],
+    remotePatterns: [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/galeria/**" }],
   },
   async redirects() {
     return legacyRedirects;

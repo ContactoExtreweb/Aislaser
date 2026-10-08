@@ -1,10 +1,7 @@
-import { projects } from "@/content/projects";
+import type { Project } from "@/content/projects";
 
-const names = projects
-  .filter((p) => p.sector !== "tecnicas")
-  .map((p) => p.title);
-
-export function ReferenceMarquee() {
+export function ReferenceMarquee({ projects }: { projects: Project[] }) {
+  const names = projects.filter((p) => p.sector !== "tecnicas").map((p) => p.title);
   const row = [...names, ...names];
   return (
     <section aria-label="Obras de referencia" className="relative overflow-hidden border-y border-ink-200 bg-ink-50 py-6">

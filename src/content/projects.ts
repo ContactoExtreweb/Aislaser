@@ -2,17 +2,24 @@
 
 export type Sector = "infraestructuras" | "industria" | "edificacion" | "piscinas" | "residencial" | "tecnicas";
 
-export type ProjectImage = { src: string; width: number; height: number };
+export type ProjectImage = { src: string; width: number; height: number; alt?: string };
 
 export type Project = {
   slug: string;
   title: string;
   location: string;
   sector: Sector;
+  /** Sale en «Proyectos que hablan por nosotros» de la portada */
   featured: boolean;
   images: ProjectImage[];
   /** Carpeta de la galería en la web anterior (para redirecciones 301) */
-  legacy: string;
+  legacy?: string;
+  /** Campos que se rellenan desde el panel (obras de la base de datos) */
+  year?: string;
+  summary?: string;
+  description?: string;
+  /** Slugs de los servicios relacionados */
+  services?: string[];
 };
 
 export const sectors: Record<Sector, { label: string; short: string }> = {
@@ -30,7 +37,7 @@ export const projects: Project[] = [
     title: "Aeropuerto de Bilbao",
     location: "Bilbao (Bizkaia)",
     sector: "infraestructuras",
-    featured: true,
+    featured: false,
     legacy: "aeropuertobilbao",
     images: [
       { src: "/images/obras/aeropuerto-de-bilbao/01.webp", width: 720, height: 480 },
@@ -141,7 +148,7 @@ export const projects: Project[] = [
     title: "Central Nuclear de Almaraz",
     location: "Almaraz (Cáceres)",
     sector: "industria",
-    featured: true,
+    featured: false,
     legacy: "almaraz",
     images: [
       { src: "/images/obras/central-nuclear-de-almaraz/01.webp", width: 720, height: 480 },
@@ -471,4 +478,3 @@ export const projects: Project[] = [
 ];
 
 export const getProject = (slug: string) => projects.find((p) => p.slug === slug);
-export const featuredProjects = projects.filter((p) => p.featured);

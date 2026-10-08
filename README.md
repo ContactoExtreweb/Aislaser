@@ -72,18 +72,21 @@ src/
     (site)/            Web pública: inicio, empresa, servicios, obras, contacto, legales
     panel/             Panel privado
       (auth)/          Login y recuperar contraseña
-      (app)/           Dosieres, editor, mensajes (requiere administrador)
+      (app)/           Dosieres, editor, obras de la web, mensajes (requiere administrador)
       demo/            Modo demostración (sólo sin Supabase configurado)
     auth/callback/     Vuelta de los emails de Supabase
   components/
     site/              Componentes de la web
     panel/editor/      Editor de dosieres (puntos, texto enriquecido, fotos, autoguardado)
     panel/document/    Maquetación A4 automática y exportación PDF / PNG
-  content/             Textos de empresa, servicios y las 32 obras (fácil de editar)
+    panel/obras/       Gestión de las obras de la web (fotos, datos, publicar)
+  content/             Textos de empresa y servicios; las 32 obras de la web anterior (respaldo e importación)
   lib/supabase/        Clientes de Supabase
   lib/dossier/         Tipos, repositorio Supabase / demo, preparación de imágenes
+  lib/obras.ts         Lectura de las obras publicadas para la web (caché con etiqueta «obras»)
   proxy.ts             Protección del panel y refresco de sesión
 supabase/              SQL del esquema y alta de administradores
+scripts/               Importación de las obras de la web anterior a la galería
 public/images/         Fotografías optimizadas (WebP) de la web anterior
 ```
 
@@ -110,8 +113,25 @@ Flujo:
 9. Duplicar un documento para usarlo como plantilla, marcarlo como terminado, buscar y eliminar.
 10. **Mensajes:** solicitudes del formulario de contacto de la web, con marcar como leído.
 
+### Obras de la web (`/panel/obras`)
+
+Las obras que se ven en la web (página *Obras*, portada y obras relacionadas de cada servicio) se gestionan desde el panel, sin tocar código ni volver a desplegar:
+
+1. **Nueva obra:** se escribe el nombre y se crea como borrador. Su dirección (`/obras/piscina-de-merida`) sale del nombre y no cambia.
+2. **Fotos:** arrastrar, *Elegir fotos*, pegar con Ctrl+V o *Hacer foto* en el móvil (también fotos HEIC del iPhone). Se reducen a 2000 px antes de subirlas. La primera es la **portada**; se pueden mover, poner de portada, borrar y describir.
+3. **Datos:** sector (obligatorio para publicar), lugar, año, trabajos realizados (enlazan con cada servicio), resumen y descripción (las líneas que empiezan por «- » salen como lista). *Destacar en la portada* la pone en «Proyectos que hablan por nosotros» (las 6 primeras destacadas).
+4. **Guardar y publicar:** sale en la web al momento. *Quitar de la web* la deja como borrador. Las flechas del listado cambian el orden en que salen.
+
+Las fotos se guardan en el bucket público `galeria` y la web las lee con la clave publicable (el RLS sólo deja ver lo publicado). Mientras la galería de la base de datos esté vacía o no exista, la web enseña las obras de `src/content/projects.ts`.
+
+**Pasar las obras de la web anterior a la galería** (una sola vez, después de ejecutar la migración 004; se puede repetir sin duplicar nada):
+
+```bash
+ADMIN_EMAIL=correo@del.admin ADMIN_PASSWORD=… node scripts/importar-obras.mjs   # --simular para ver qué haría
+```
+
 ## 6. Pendiente de revisar con el cliente
 
 - Confirmar los años de experiencia (la web anterior decía "más de 15 años" en 2019) en `src/content/company.ts`.
-- Revisar la clasificación por sector y ubicación de cada obra en `src/content/projects.ts`.
-- Si se dispone de fotos de mayor resolución, sustituirlas en `public/images/` (las originales son de 720 px).
+- Revisar la clasificación por sector y ubicación de cada obra (ahora desde el panel, en *Obras web*).
+- Si se dispone de fotos de mayor resolución, subirlas desde *Obras web* (las de la web anterior son de 720 px).

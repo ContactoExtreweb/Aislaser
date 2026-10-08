@@ -1,6 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { supabaseKey, supabaseUrl } from "./env";
 
 export async function getSupabaseServer() {
@@ -30,4 +31,11 @@ export async function getAdminSession() {
   if (!user) return { supabase, user: null, isAdmin: false } as const;
   const { data } = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
   return { supabase, user, isAdmin: Boolean(data) } as const;
+}
+
+/** Cliente de Supabase con la sesión del administrador; si no lo es, vuelve al login */
+export async function requireAdminClient() {
+  const session = await getAdminSession();
+  if (!session.user || !session.isAdmin) redirect("/panel/login");
+  return session.supabase;
 }

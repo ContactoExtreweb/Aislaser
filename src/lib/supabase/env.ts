@@ -16,3 +16,10 @@ export function publicImageUrl(path: string | null | undefined) {
     .map(encodeURIComponent)
     .join("/")}`;
 }
+
+/** Bucket público con las fotos de las obras de la web (se gestionan en /panel/obras) */
+export const GALLERY_BUCKET = "galeria";
+
+export function galleryImageUrl(path: string) {
+  return `${supabaseUrl}/storage/v1/object/public/${GALLERY_BUCKET}/${path.split("/").map(encodeURIComponent).join("/")}`;
+}

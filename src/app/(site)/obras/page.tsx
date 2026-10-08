@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CtaBand } from "@/components/site/CtaBand";
 import { PageHero } from "@/components/site/PageHero";
 import { ProjectsExplorer } from "@/components/site/ProjectsExplorer";
-import { projects } from "@/content/projects";
+import { getProjects } from "@/lib/obras";
 
 export const metadata: Metadata = {
   title: "Obras y clientes",
@@ -11,12 +11,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/obras" },
 };
 
-export default function ObrasPage() {
+export default async function ObrasPage() {
+  const projects = await getProjects();
   return (
     <>
       <PageHero
         eyebrow="Obras y clientes"
-        title="Más de 30 obras que avalan nuestro trabajo"
+        title={projects.length >= 30 ? "Más de 30 obras que avalan nuestro trabajo" : "Obras que avalan nuestro trabajo"}
         intro="De aeropuertos y centrales energéticas a piscinas municipales y viviendas particulares. Filtra por sector y descubre cada proyecto."
         image="/images/site/banner-terminal.webp"
         crumbs={[{ label: "Obras" }]}
@@ -25,7 +26,7 @@ export default function ObrasPage() {
       </PageHero>
       <section className="py-20 lg:py-28">
         <div className="container-x">
-          <ProjectsExplorer />
+          <ProjectsExplorer projects={projects} />
         </div>
       </section>
       <CtaBand title="¿Tu obra será la próxima?" />

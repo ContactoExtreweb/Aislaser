@@ -10,8 +10,8 @@ import { Reveal } from "@/components/ui/Reveal";
 import { Eyebrow, SectionHeading } from "@/components/ui/SectionHeading";
 import { ServiceIcon } from "@/components/ui/ServiceIcon";
 import { baseOpenGraph, company } from "@/content/company";
-import { getProject } from "@/content/projects";
 import { getService, services } from "@/content/services";
+import { getProjects } from "@/lib/obras";
 
 export function generateStaticParams() {
   return services.map((s) => ({ slug: s.slug }));
@@ -34,7 +34,7 @@ export default async function ServicePage({ params }: PageProps<"/servicios/[slu
   const service = getService(slug);
   if (!service) notFound();
 
-  const related = service.projects.map((p) => getProject(p)).filter((p) => p !== undefined);
+  const related = (await getProjects()).filter((p) => p.services?.includes(service.slug));
   const others = services.filter((s) => s.slug !== service.slug);
 
   return (

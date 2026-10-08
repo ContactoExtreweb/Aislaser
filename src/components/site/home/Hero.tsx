@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { company } from "@/content/company";
-import { getProject } from "@/content/projects";
+import type { Project } from "@/content/projects";
 
 const stats = [
   { value: company.yearsExperience, label: "años de experiencia" },
@@ -11,8 +11,8 @@ const stats = [
   { value: "0", label: "mantenimiento con poliurea" },
 ];
 
-export function Hero() {
-  const highlight = getProject("aeropuerto-de-sevilla-t1")!;
+/** highlight: la obra que se enseña en la tarjeta «Obra destacada» (la primera destacada del panel) */
+export function Hero({ highlight }: { highlight?: Project }) {
   return (
     <section className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-ink-950 text-white">
       <Image
@@ -54,27 +54,29 @@ export function Hero() {
           </div>
         </div>
 
-        <Link
-          href={`/obras/${highlight.slug}`}
-          className="group absolute right-8 bottom-44 hidden w-72 animate-float overflow-hidden rounded-3xl border border-white/15 bg-white/10 p-2 backdrop-blur-xl xl:block"
-        >
-          <div className="relative aspect-[4/3] overflow-hidden rounded-2xl">
-            <Image
-              src={highlight.images[0].src}
-              alt={highlight.title}
-              fill
-              sizes="288px"
-              className="object-cover transition-transform duration-700 group-hover:scale-110"
-            />
-          </div>
-          <div className="flex items-center justify-between px-3 pt-3 pb-2">
-            <div>
-              <p className="text-[11px] font-bold tracking-[0.18em] text-laser-500 uppercase">Obra destacada</p>
-              <p className="mt-1 font-display text-xl font-bold">{highlight.title}</p>
+        {highlight && (
+          <Link
+            href={`/obras/${highlight.slug}`}
+            className="group absolute right-8 bottom-44 hidden w-72 animate-float overflow-hidden rounded-3xl border border-white/15 bg-white/10 p-2 backdrop-blur-xl xl:block"
+          >
+            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl">
+              <Image
+                src={highlight.images[0].src}
+                alt={highlight.title}
+                fill
+                sizes="288px"
+                className="object-cover transition-transform duration-700 group-hover:scale-110"
+              />
             </div>
-            <ArrowUpRight className="size-5 text-white/70 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </div>
-        </Link>
+            <div className="flex items-center justify-between px-3 pt-3 pb-2">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.18em] text-laser-500 uppercase">Obra destacada</p>
+                <p className="mt-1 font-display text-xl font-bold">{highlight.title}</p>
+              </div>
+              <ArrowUpRight className="size-5 text-white/70 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </div>
+          </Link>
+        )}
       </div>
 
       <div className="relative border-t border-white/10 bg-ink-950/60 backdrop-blur-md">

@@ -3,19 +3,12 @@ import { ArrowUpRight } from "lucide-react";
 import { ProjectCard } from "@/components/site/ProjectCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { getProject, projects } from "@/content/projects";
+import type { Project } from "@/content/projects";
+import { pickFeatured } from "@/lib/obras";
 
-const selection = [
-  "aeropuerto-de-sevilla-t1",
-  "palacio-de-congresos-villanueva-de-la-serena",
-  "piscina-de-cordoba",
-  "conibridge-cordoba",
-  "central-termica-de-algeciras",
-  "hospital-de-huelva",
-];
-
-export function FeaturedProjects() {
-  const items = selection.map((s) => getProject(s)!);
+/** Las obras marcadas como «destacada» en el panel */
+export function FeaturedProjects({ projects }: { projects: Project[] }) {
+  const items = pickFeatured(projects);
   const layout = [
     "lg:col-span-7 lg:row-span-2 min-h-[420px]",
     "lg:col-span-5",
