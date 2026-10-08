@@ -30,7 +30,8 @@ Comandos: `npm run build` · `npm start` · `npm run typecheck`.
    - Bucket de Storage `dossier-images` (fotos; lectura pública por URL, escritura sólo administradores).
    - Bucket **privado** `firmas` (sello y firma; sólo administradores, con URLs firmadas temporales).
    - Seguridad RLS en todas las tablas. El script es idempotente (se puede repetir sin perder datos).
-   - Si ya tenías el esquema anterior, basta con ejecutar `supabase/migrations/002_informe_y_firma.sql` (o repetir `schema.sql`).
+   - Si una ejecución anterior se quedó a medias, ejecuta `supabase/pendiente.sql` (es el script completo e idempotente: crea o repara todo).
+   - Migraciones sueltas: `002_informe_y_firma.sql` (formato informe, sello y firma) y `003_proteger_mensajes.sql` (protección del formulario contra abusos).
 3. **Authentication → Sign In / Providers → Email:** desactivar *Allow new users to sign up*.
 4. **Authentication → Users → Add user → Create new user:** email + contraseña del cliente, marcando *Auto Confirm User*.
 5. **SQL Editor:** ejecutar `supabase/add-admin.sql` cambiando el email por el del paso 4.
@@ -49,11 +50,12 @@ Comandos: `npm run build` · `npm start` · `npm run typecheck`.
 
 > Son variables `NEXT_PUBLIC_*`: se incrustan al compilar. Tras cambiarlas hay que **volver a desplegar**.
 
-## 3. Despliegue (Vercel recomendado)
+## 3. Despliegue (Netlify)
 
-1. Importar el repositorio en Vercel (framework detectado: Next.js).
-2. Añadir las tres variables de entorno anteriores.
-3. Deploy y apuntar el dominio `aislaser.es` / `www.aislaser.es`.
+El repositorio está conectado a Netlify: **cada push a `main` se publica automáticamente**. `netlify.toml` fija Node 22 y las variables públicas de Supabase, así que no hace falta configurar nada más en Netlify.
+
+1. Cuando el dominio esté listo, apuntar `aislaser.es` / `www.aislaser.es` al sitio de Netlify.
+2. En Supabase → Authentication → URL Configuration, añadir la dirección de Netlify (y el dominio final) en *Redirect URLs*, p. ej. `https://<sitio>.netlify.app/auth/callback`, para que funcione «¿Has olvidado tu contraseña?».
 
 Las URLs de la web antigua (Joomla) redirigen con **301/308** a las nuevas (`/quienes-somos.html → /empresa`, `/servicios/poliureas.html → /servicios/poliurea`, galerías de obras, etc.) para conservar el posicionamiento. Ver `next.config.ts`.
 
