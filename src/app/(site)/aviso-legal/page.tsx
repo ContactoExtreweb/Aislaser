@@ -14,11 +14,12 @@ export default function AvisoLegalPage() {
       </p>
       <ul>
         <li><strong>Razón social:</strong> {company.legalName}</li>
-        <li><strong>CIF:</strong> [pendiente de completar]</li>
+        <li><strong>CIF:</strong> {company.cif}</li>
+        <li><strong>Nº de registro:</strong> {company.registry}</li>
         <li>
           <strong>Domicilio:</strong> {company.address.street}, {company.address.postalCode} {company.address.city} ({company.address.province})
         </li>
-        <li><strong>Teléfono:</strong> {company.phones.map((p) => p.label).join(" · ")}</li>
+        <li><strong>Teléfono:</strong> {[company.landline, ...company.phones].map((p) => p.label).join(" · ")}</li>
         <li><strong>Email:</strong> {company.email}</li>
       </ul>
       <h2>Condiciones de uso</h2>

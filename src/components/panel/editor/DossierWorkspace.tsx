@@ -6,13 +6,24 @@ import { ArrowLeft, CircleAlert, CircleCheck, Eye, LoaderCircle, PencilLine, Plu
 import { DossierPreview } from "@/components/panel/document/DossierPreview";
 import { createDemoRepo } from "@/lib/dossier/demo-repo";
 import { createSupabaseRepo } from "@/lib/dossier/supabase-repo";
-import type { Dossier } from "@/lib/dossier/types";
+import { DEFAULT_BRANDING, type Branding, type Dossier } from "@/lib/dossier/types";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
-import { DetailsCard } from "./DetailsCard";
+import { ClosingCard, DetailsCard } from "./DetailsCard";
 import { PointCard } from "./PointCard";
 import { useDossierEditor } from "./useDossierEditor";
 
-export function DossierWorkspace({ initial, demo = false }: { initial: Dossier; demo?: boolean }) {
+export function DossierWorkspace({
+  initial,
+  demo = false,
+  branding = DEFAULT_BRANDING,
+  needsMigration = false,
+}: {
+  initial: Dossier;
+  demo?: boolean;
+  branding?: Branding;
+  /** La base de datos aún no tiene los campos del formato informe (migración 002) */
+  needsMigration?: boolean;
+}) {
   const repo = useMemo(() => (demo ? createDemoRepo() : createSupabaseRepo(getSupabaseBrowser())), [demo]);
   const api = useDossierEditor(initial, repo);
   const { dossier, save } = api;
@@ -57,7 +68,7 @@ export function DossierWorkspace({ initial, demo = false }: { initial: Dossier; 
             <ArrowLeft className="size-5" />
           </Link>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-xl font-bold text-ink-900">{dossier.title || "Dosier sin título"}</p>
+            <p className="truncate font-display text-xl font-bold text-ink-900">{dossier.title || (dossier.template === "informe" ? "Informe sin título" : "Dosier sin título")}</p>
             <SaveStatus pending={save.pending} error={save.error} demo={demo} />
           </div>
 
@@ -114,6 +125,13 @@ export function DossierWorkspace({ initial, demo = false }: { initial: Dossier; 
                 de datos, cada cambio se guardará automáticamente.
               </p>
             )}
+            {needsMigration && (
+              <p className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800" role="alert">
+                <CircleAlert className="mt-0.5 size-5 shrink-0" />
+                Falta actualizar la base de datos: ejecuta el archivo supabase/migrations/002_informe_y_firma.sql en el SQL Editor de
+                Supabase. Hasta entonces no se guardarán los datos de cabecera del informe ni la firma.
+              </p>
+            )}
             <DetailsCard api={api} />
 
             {dossier.points.length === 0 && (
@@ -124,7 +142,15 @@ export function DossierWorkspace({ initial, demo = false }: { initial: Dossier; 
             )}
 
             {dossier.points.map((p, i) => (
-              <PointCard key={p.id} point={p} index={i} total={dossier.points.length} pending={api.uploads[p.id] ?? []} api={api} />
+              <PointCard
+                key={p.id}
+                point={p}
+                index={i}
+                total={dossier.points.length}
+                pending={api.uploads[p.id] ?? []}
+                api={api}
+                template={dossier.template}
+              />
             ))}
 
             <button
@@ -138,6 +164,8 @@ export function DossierWorkspace({ initial, demo = false }: { initial: Dossier; 
               </span>
               Añadir punto {dossier.points.length + 1}
             </button>
+
+            <ClosingCard api={api} branding={branding} demo={demo} />
 
             <div className="flex flex-col items-center gap-3 pt-4 pb-10 text-center">
               <p className="text-sm text-ink-500">
@@ -157,7 +185,7 @@ export function DossierWorkspace({ initial, demo = false }: { initial: Dossier; 
             </div>
           </div>
         ) : (
-          <DossierPreview dossier={dossier} />
+          <DossierPreview dossier={dossier} branding={branding} />
         )}
       </div>
     </div>

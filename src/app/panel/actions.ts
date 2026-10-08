@@ -65,6 +65,13 @@ export async function updatePassword(_prev: FormState, formData: FormData): Prom
 
 /* ----------------------------- Dosieres ----------------------------- */
 
+const DEFAULT_SECTIONS = ["Objeto del informe", "Pruebas realizadas", "Conclusiones y propuesta de actuación"];
+
+/** Copia sólo las columnas que existen (por si la migración 002 no se ha ejecutado) */
+function pickExisting(row: Record<string, unknown>, keys: string[]) {
+  return Object.fromEntries(keys.filter((k) => k in row).map((k) => [k, row[k]]));
+}
+
 async function requireAdmin() {
   const session = await getAdminSession();
   if (!session.user || !session.isAdmin) redirect("/panel/login");
@@ -75,12 +82,14 @@ export async function createDossier() {
   const supabase = await requireAdmin();
   const { data, error } = await supabase
     .from("dossiers")
-    .insert({ title: "Nuevo dosier", work_date: new Date().toISOString().slice(0, 10) })
+    .insert({ title: "", work_date: new Date().toISOString().slice(0, 10) })
     .select("id")
     .single();
   if (error || !data) throw new Error(error?.message ?? "No se pudo crear el dosier");
-  // Empieza ya con el punto 1 listo para escribir
-  await supabase.from("dossier_points").insert({ dossier_id: data.id, position: 0 });
+  // Empieza con los apartados habituales de un informe de Aislaser, listos para escribir
+  await supabase.from("dossier_points").insert(
+    DEFAULT_SECTIONS.map((title, position) => ({ dossier_id: data.id, position, title })),
+  );
   redirect(`/panel/dosieres/${data.id}`);
 }
 
@@ -117,6 +126,7 @@ export async function duplicateDossier(id: string) {
       reference: src.reference,
       intro: src.intro,
       status: "borrador",
+      ...pickExisting(src, ["template", "attention", "prepared_by", "issue_place", "signer_name", "show_signature"]),
     })
     .select("id")
     .single();

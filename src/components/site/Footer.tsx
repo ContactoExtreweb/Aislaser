@@ -54,6 +54,9 @@ export function Footer() {
                       {p.label}
                     </a>
                   ))}
+                  <a href={company.landline.href} className="text-ink-400 transition-colors hover:text-laser-500">
+                    Tel./Fax {company.landline.label}
+                  </a>
                 </span>
               </li>
               <li className="flex gap-3">

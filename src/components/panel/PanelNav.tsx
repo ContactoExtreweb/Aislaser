@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ExternalLink, FileText, Inbox, LogOut } from "lucide-react";
+import { ExternalLink, FileText, Inbox, LogOut, Settings } from "lucide-react";
 import { LogoMark } from "@/components/brand/Logo";
 import { signOut } from "@/app/panel/actions";
 
@@ -11,6 +11,7 @@ export function PanelNav({ email, unread }: { email: string; unread: number }) {
   const links = [
     { href: "/panel", label: "Dosieres", icon: FileText, active: pathname === "/panel" || pathname.startsWith("/panel/dosieres") },
     { href: "/panel/mensajes", label: "Mensajes", icon: Inbox, active: pathname.startsWith("/panel/mensajes"), badge: unread },
+    { href: "/panel/ajustes", label: "Ajustes", icon: Settings, active: pathname.startsWith("/panel/ajustes") },
   ];
   return (
     <nav className="border-b border-white/5 bg-ink-950 text-white print:hidden">
@@ -28,7 +29,7 @@ export function PanelNav({ email, unread }: { email: string; unread: number }) {
             }`}
           >
             <l.icon className="size-4" />
-            {l.label}
+            <span className={l.href === "/panel/ajustes" ? "hidden sm:inline" : ""}>{l.label}</span>
             {!!l.badge && <span className="rounded-full bg-laser-500 px-1.5 text-[11px] text-ink-900">{l.badge}</span>}
           </Link>
         ))}

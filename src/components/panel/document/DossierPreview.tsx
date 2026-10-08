@@ -2,9 +2,9 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Download, FileImage, LoaderCircle, Printer, TriangleAlert } from "lucide-react";
-import type { Dossier } from "@/lib/dossier/types";
+import type { Branding, Dossier } from "@/lib/dossier/types";
 import { getBrandFontCss } from "./embedFonts";
-import { BlockView, CONTENT_W, ContentPage, CoverPage, PAGE_H, PAGE_W, buildBlocks, paginate, type PlacedBlock } from "./DossierDocument";
+import { BlockView, ContentPage, CoverPage, InformePage, LAYOUTS, PAGE_H, PAGE_W, buildBlocks, paginate, type PlacedBlock } from "./DossierDocument";
 
 function slugify(text: string) {
   return (
@@ -27,8 +27,10 @@ function download(url: string, filename: string) {
   a.remove();
 }
 
-export function DossierPreview({ dossier }: { dossier: Dossier }) {
-  const blocks = useMemo(() => buildBlocks(dossier), [dossier]);
+export function DossierPreview({ dossier, branding }: { dossier: Dossier; branding: Branding }) {
+  const layout = LAYOUTS[dossier.template];
+  const informe = dossier.template === "informe";
+  const blocks = useMemo(() => buildBlocks(dossier, branding), [dossier, branding]);
   const measureRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -44,14 +46,14 @@ export function DossierPreview({ dossier }: { dossier: Dossier }) {
       const el = measureRef.current;
       if (!el || cancelled) return;
       const heights = Array.from(el.children).map((c) => (c as HTMLElement).getBoundingClientRect().height);
-      setPages(paginate(blocks, heights));
+      setPages(paginate(blocks, heights, layout.contentH));
     };
     run();
     void document.fonts?.ready.then(run);
     return () => {
       cancelled = true;
     };
-  }, [blocks]);
+  }, [blocks, layout.contentH]);
 
   // Escala para que las hojas quepan en pantalla
   useEffect(() => {
@@ -62,7 +64,8 @@ export function DossierPreview({ dossier }: { dossier: Dossier }) {
     return () => ro.disconnect();
   }, []);
 
-  const totalPages = (pages?.length ?? 0) + 1;
+  // El formato informe no tiene portada: todas las hojas llevan el membrete
+  const totalPages = (pages?.length ?? 0) + (informe ? 0 : 1);
   const overflow = pages?.some((p) => p.some((b) => b.overflow));
   const baseName = `${slugify(dossier.title)}${dossier.reference ? `-${slugify(dossier.reference)}` : ""}`;
 
@@ -162,7 +165,7 @@ export function DossierPreview({ dossier }: { dossier: Dossier }) {
       </div>
 
       {/* Contenedor invisible donde se mide la altura real de cada bloque */}
-      <div aria-hidden="true" className="print:hidden" style={{ position: "absolute", left: -10000, top: 0, width: CONTENT_W, visibility: "hidden" }} ref={measureRef}>
+      <div aria-hidden="true" className="print:hidden" style={{ position: "absolute", left: -10000, top: 0, width: layout.contentW, visibility: "hidden" }} ref={measureRef}>
         {blocks.map((b) => (
           <div key={b.key} style={{ display: "flow-root" }}>
             <BlockView block={b} />
@@ -172,7 +175,13 @@ export function DossierPreview({ dossier }: { dossier: Dossier }) {
 
       <div ref={wrapRef} className="mx-auto max-w-[794px]">
         <div id="dossier-pages" ref={pagesRef} className="space-y-6 print:space-y-0">
-          {pages && (
+          {pages && informe &&
+            pages.map((blocksOnPage, i) => (
+              <ScaledPage key={i} scale={scale} label={`Página ${i + 1}`}>
+                <InformePage blocks={blocksOnPage} pageNumber={i + 1} totalPages={totalPages} />
+              </ScaledPage>
+            ))}
+          {pages && !informe && (
             <>
               <ScaledPage scale={scale} label="Portada">
                 <CoverPage dossier={dossier} />

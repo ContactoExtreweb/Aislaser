@@ -6,9 +6,12 @@ const MAX_SIDE = 2400;
  * Prepara una foto para subirla: corrige la orientación, la reduce si es enorme
  * (las de móvil pueden pesar 10 MB) y la convierte a JPEG de buena calidad.
  */
-export async function prepareImage(file: File | Blob): Promise<{ blob: Blob; width: number; height: number }> {
+export async function prepareImage(
+  file: File | Blob,
+  { format = "jpeg", maxSide = MAX_SIDE }: { format?: "jpeg" | "png"; maxSide?: number } = {},
+): Promise<{ blob: Blob; width: number; height: number }> {
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const width = Math.round(bitmap.width * scale);
   const height = Math.round(bitmap.height * scale);
 
@@ -16,13 +19,20 @@ export async function prepareImage(file: File | Blob): Promise<{ blob: Blob; wid
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
+  // En PNG (sello y firma) se conserva la transparencia; en JPEG el fondo queda blanco
+  if (format === "jpeg") {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+  }
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
   const blob = await new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("No se pudo procesar la imagen"))), "image/jpeg", 0.86),
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("No se pudo procesar la imagen"))),
+      format === "png" ? "image/png" : "image/jpeg",
+      0.86,
+    ),
   );
   return { blob, width, height };
 }

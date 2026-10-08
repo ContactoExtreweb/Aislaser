@@ -71,6 +71,24 @@ export default function ServiciosPage() {
         </div>
       </section>
 
+      <section className="pb-20">
+        <div className="container-x">
+          <div className="flex flex-col gap-5 rounded-[2rem] border border-ink-200 bg-ink-50 p-7 sm:p-9 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-extrabold tracking-[0.22em] text-ink-500 uppercase">Y además</p>
+              <p className="mt-2 font-display text-3xl font-bold text-ink-900">Otros trabajos que realizamos</p>
+            </div>
+            <ul className="flex flex-wrap gap-2">
+              {["Suelos industriales", "Techos desmontables", "Pladur", "Insonorizaciones"].map((t) => (
+                <li key={t} className="rounded-full border border-ink-200 bg-white px-4 py-2 text-sm font-bold text-ink-800">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
       <div className="bg-ink-50">
         <Process />
       </div>

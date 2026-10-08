@@ -5,8 +5,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export const metadata: Metadata = { title: "Demostración del editor" };
 
-/** Sólo disponible mientras Supabase no esté configurado */
+/** Disponible mientras Supabase no esté configurado (y siempre en desarrollo local) */
 export default function DemoPage() {
-  if (isSupabaseConfigured) notFound();
+  if (isSupabaseConfigured && process.env.NODE_ENV !== "development") notFound();
   return <DemoWorkspace />;
 }

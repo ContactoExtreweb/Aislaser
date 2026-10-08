@@ -6,6 +6,8 @@ export const supabaseKey =
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
 
 export const DOSSIER_BUCKET = "dossier-images";
+/** Bucket privado con el sello y la firma (sólo URLs firmadas temporales) */
+export const SIGNATURE_BUCKET = "firmas";
 
 export function publicImageUrl(path: string | null | undefined) {
   if (!path) return null;

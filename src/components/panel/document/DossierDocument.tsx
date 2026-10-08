@@ -1,37 +1,57 @@
 /* eslint-disable @next/next/no-img-element */
-import { Fragment } from "react";
 import { LOGO_DARK_PATH, LOGO_VIEWBOX, LOGO_YELLOW_PATH } from "@/components/brand/logo-paths";
 import { company } from "@/content/company";
-import type { Dossier, DossierImage, ImageLayout } from "@/lib/dossier/types";
+import type { Branding, Dossier, DossierImage, DossierTemplate, ImageLayout } from "@/lib/dossier/types";
 
 /* Medidas de una hoja A4 a 96 ppp (210 × 297 mm) */
 export const PAGE_W = 794;
 export const PAGE_H = 1122;
-export const PAD_X = 64;
-export const CONTENT_W = PAGE_W - PAD_X * 2;
-const HEADER_H = 104;
-const FOOTER_H = 78;
-export const CONTENT_H = PAGE_H - HEADER_H - FOOTER_H;
 const GAP = 12;
+
+export type PageLayout = { padLeft: number; contentTop: number; contentW: number; contentH: number };
+
+/**
+ * Márgenes de cada formato.
+ * - informe: calcado del membrete de Aislaser (márgenes de Word de 3 cm, pie con actividades)
+ * - portada: dosier fotográfico con cabecera y pie propios
+ */
+export const LAYOUTS: Record<DossierTemplate, PageLayout> = {
+  informe: { padLeft: 113, contentTop: 150, contentW: PAGE_W - 113 * 2, contentH: 1040 - 150 },
+  portada: { padLeft: 64, contentTop: 104, contentW: PAGE_W - 64 * 2, contentH: PAGE_H - 104 - 78 },
+};
+
+const INK = "#1d1b1b";
+const LETTERHEAD_YELLOW = "#ffc000"; // amarillo del membrete original
+const HIGHLIGHT = "#ffce00"; // amarillo de marca para el título resaltado
+
+const font = {
+  sans: "var(--font-mulish), system-ui, sans-serif",
+  display: "var(--font-barlow), var(--font-mulish), system-ui, sans-serif",
+};
 
 /* ------------------------------------------------------------------ */
 /*  Bloques: unidades mínimas que se reparten entre las páginas        */
 /* ------------------------------------------------------------------ */
 
+type BlockBase = { key: string; spaceBefore: number; keepWithNext?: boolean; template: DossierTemplate };
+
 export type Block =
-  | { kind: "point"; key: string; number: number; title: string; spaceBefore: number; keepWithNext: true }
-  | { kind: "html"; key: string; html: string; spaceBefore: number; keepWithNext?: false }
-  | { kind: "images"; key: string; images: DossierImage[]; layout: ImageLayout; spaceBefore: number; keepWithNext?: false };
+  | (BlockBase & { kind: "addressee"; lines: { label: string; value: string }[]; topGap: number })
+  | (BlockBase & { kind: "title"; title: string })
+  | (BlockBase & { kind: "point"; number: number; title: string })
+  | (BlockBase & { kind: "html"; html: string })
+  | (BlockBase & { kind: "images"; images: DossierImage[]; layout: ImageLayout; contentW: number })
+  | (BlockBase & { kind: "closing"; text: string; signer: string; branding: Branding; showSignature: boolean });
 
 /** Divide el HTML del editor en párrafos y elementos de lista sueltos para poder paginarlo */
-function splitHtml(html: string, keyPrefix: string, firstSpace: number): Block[] {
+function splitHtml(html: string, keyPrefix: string, firstSpace: number, template: DossierTemplate, gap: number): Block[] {
   if (!html.trim()) return [];
   const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
   const root = doc.body.firstElementChild!;
   const blocks: Block[] = [];
   let n = 0;
   const push = (h: string) => {
-    blocks.push({ kind: "html", key: `${keyPrefix}-${n++}`, html: h, spaceBefore: blocks.length === 0 ? firstSpace : 7 });
+    blocks.push({ kind: "html", key: `${keyPrefix}-${n++}`, html: h, spaceBefore: blocks.length === 0 ? firstSpace : gap, template });
   };
   Array.from(root.children).forEach((el) => {
     const tag = el.tagName.toLowerCase();
@@ -50,18 +70,51 @@ function splitHtml(html: string, keyPrefix: string, firstSpace: number): Block[]
   return blocks;
 }
 
-export function buildBlocks(dossier: Dossier): Block[] {
-  const blocks: Block[] = [...splitHtml(dossier.intro, "intro", 0)];
+export function formatDate(date: string | null) {
+  if (!date) return "";
+  return new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(`${date}T00:00:00Z`),
+  );
+}
+
+export function closingText(dossier: Dossier) {
+  const place = dossier.issue_place.trim();
+  const date = formatDate(dossier.work_date);
+  if (dossier.template === "informe") {
+    return `Se emite este informe técnico${place ? ` en ${place}` : ""}${date ? ` a ${date}` : ""}`;
+  }
+  return [place, date ? `a ${date}` : ""].filter(Boolean).join(", ");
+}
+
+export function buildBlocks(dossier: Dossier, branding: Branding): Block[] {
+  const template = dossier.template;
+  const layout = LAYOUTS[template];
+  const informe = template === "informe";
+  const blocks: Block[] = [];
+
+  if (informe) {
+    const lines = [
+      { label: "A/A del técnico:", value: dossier.attention },
+      { label: "INFORME REALIZADO POR:", value: dossier.prepared_by },
+      { label: "PARA:", value: dossier.client_name },
+    ].filter((l) => l.value.trim());
+    if (lines.length) blocks.push({ kind: "addressee", key: "addressee", lines, topGap: 46, spaceBefore: 0, template });
+    blocks.push({ kind: "title", key: "title", title: dossier.title, spaceBefore: lines.length ? 18 : 46, template });
+  }
+
+  blocks.push(...splitHtml(dossier.intro, "intro", blocks.length ? 16 : 0, template, informe ? 10 : 7));
+
   dossier.points.forEach((p, i) => {
     blocks.push({
       kind: "point",
       key: `point-${p.id}`,
       number: i + 1,
       title: p.title,
-      spaceBefore: blocks.length ? 34 : 0,
+      spaceBefore: blocks.length ? (informe ? 18 : 34) : 0,
       keepWithNext: true,
+      template,
     });
-    blocks.push(...splitHtml(p.body, `body-${p.id}`, 14));
+    blocks.push(...splitHtml(p.body, `body-${p.id}`, informe ? 12 : 14, template, informe ? 10 : 7));
     const perRow = p.image_layout === "grid-1" ? 1 : p.image_layout === "grid-2" ? 2 : 3;
     for (let r = 0; r < p.images.length; r += perRow) {
       blocks.push({
@@ -69,17 +122,32 @@ export function buildBlocks(dossier: Dossier): Block[] {
         key: `imgs-${p.id}-${r}`,
         images: p.images.slice(r, r + perRow),
         layout: p.image_layout,
+        contentW: layout.contentW,
         spaceBefore: 14,
+        template,
       });
     }
   });
+
+  if (informe || dossier.show_signature) {
+    blocks.push({
+      kind: "closing",
+      key: "closing",
+      text: closingText(dossier),
+      signer: dossier.signer_name.trim() || branding.signerName,
+      branding,
+      showSignature: dossier.show_signature,
+      spaceBefore: blocks.length ? 24 : 0,
+      template,
+    });
+  }
   return blocks;
 }
 
 export type PlacedBlock = { block: Block; space: number; overflow: boolean };
 
 /** Reparte los bloques en páginas según su altura real medida */
-export function paginate(blocks: Block[], heights: number[]): PlacedBlock[][] {
+export function paginate(blocks: Block[], heights: number[], contentH: number): PlacedBlock[][] {
   const pages: PlacedBlock[][] = [];
   let current: PlacedBlock[] = [];
   let used = 0;
@@ -88,13 +156,13 @@ export function paginate(blocks: Block[], heights: number[]): PlacedBlock[][] {
     let space = current.length ? block.spaceBefore : 0;
     let need = space + h;
     if (block.keepWithNext && i + 1 < blocks.length) need += blocks[i + 1].spaceBefore + (heights[i + 1] ?? 0);
-    if (current.length && used + need > CONTENT_H) {
+    if (current.length && used + need > contentH) {
       pages.push(current);
       current = [];
       used = 0;
       space = 0;
     }
-    current.push({ block, space, overflow: h > CONTENT_H });
+    current.push({ block, space, overflow: h > contentH });
     used += space + h;
   });
   if (current.length) pages.push(current);
@@ -102,13 +170,8 @@ export function paginate(blocks: Block[], heights: number[]): PlacedBlock[][] {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Render                                                             */
+/*  Render de bloques                                                  */
 /* ------------------------------------------------------------------ */
-
-const font = {
-  sans: "var(--font-mulish), system-ui, sans-serif",
-  display: "var(--font-barlow), var(--font-mulish), system-ui, sans-serif",
-};
 
 function DocLogo({ height, white = false }: { height: number; white?: boolean }) {
   return (
@@ -129,88 +192,154 @@ function DocDots() {
   );
 }
 
-export function formatDate(date: string | null) {
-  if (!date) return "";
-  return new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
-}
-
-function imageBox(img: DossierImage, layout: ImageLayout) {
+function imageBox(img: DossierImage, layout: ImageLayout, contentW: number) {
   if (layout === "grid-1") {
     const ratio = img.width && img.height ? img.height / img.width : 2 / 3;
-    let h = Math.round(CONTENT_W * ratio);
-    let w = CONTENT_W;
-    if (h > 500) {
-      h = 500;
+    let h = Math.round(contentW * ratio);
+    let w = contentW;
+    const maxH = Math.round(contentW * 0.62);
+    if (h > maxH) {
+      h = maxH;
       w = Math.round(h / ratio);
     }
-    if (h < 220) h = 220;
-    return { w, h, fit: "cover" as const };
+    if (h < 200) h = 200;
+    return { w, h };
   }
   const cols = layout === "grid-2" ? 2 : 3;
-  const w = Math.floor((CONTENT_W - GAP * (cols - 1)) / cols);
-  return { w, h: Math.round((w * 3) / 4), fit: "cover" as const };
+  const w = Math.floor((contentW - GAP * (cols - 1)) / cols);
+  return { w, h: Math.round((w * 3) / 4) };
 }
 
+// Equivalente visual al Calibri 11 pt de los informes originales
+const informeText: React.CSSProperties = { fontFamily: font.sans, fontSize: 13.5, lineHeight: 1.5, color: INK };
+
 export function BlockView({ block }: { block: Block }) {
-  if (block.kind === "point") {
-    return (
-      <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 10, borderBottom: "1px solid #e3e0dd" }}>
-        <span
-          style={{
-            width: 42,
-            height: 42,
-            flexShrink: 0,
-            borderRadius: 12,
-            background: "#ffce00",
-            color: "#242121",
-            display: "grid",
-            placeItems: "center",
-            fontFamily: font.display,
-            fontWeight: 700,
-            fontSize: 25,
-          }}
-        >
-          {block.number}
-        </span>
-        <span style={{ fontFamily: font.display, fontWeight: 700, fontSize: 26, lineHeight: 1.1, color: "#242121" }}>
-          {block.title || `Punto ${block.number}`}
-        </span>
-      </div>
-    );
-  }
-  if (block.kind === "html") {
-    return (
-      <div
-        className="dossier-richtext"
-        style={{ fontFamily: font.sans, fontSize: 12.5, lineHeight: 1.62, color: "#433f3f" }}
-        dangerouslySetInnerHTML={{ __html: block.html }}
-      />
-    );
-  }
-  const single = block.layout === "grid-1";
-  return (
-    <div style={{ display: "flex", gap: GAP, justifyContent: single ? "center" : "flex-start" }}>
-      {block.images.map((img) => {
-        const box = imageBox(img, block.layout);
+  const informe = block.template === "informe";
+
+  switch (block.kind) {
+    case "addressee":
+      return (
+        <div style={{ ...informeText, paddingTop: block.topGap }}>
+          {block.lines.map((l, i) => (
+            <p key={l.label} style={{ margin: i ? "13px 0 0" : 0 }}>
+              {l.label}&nbsp; {l.value}
+            </p>
+          ))}
+        </div>
+      );
+
+    case "title":
+      return (
+        <p style={{ ...informeText, margin: 0, textAlign: "center", fontWeight: 800 }}>
+          <span style={{ background: HIGHLIGHT, padding: "1px 4px", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>
+            {block.title || "Título del informe"}
+          </span>
+        </p>
+      );
+
+    case "point":
+      if (informe) {
         return (
-          <figure key={img.id} style={{ margin: 0, width: box.w }}>
-            <img
-              src={img.url}
-              alt={img.caption}
-              crossOrigin="anonymous"
-              style={{ width: box.w, height: box.h, objectFit: box.fit, borderRadius: 8, display: "block", background: "#f0eeeb" }}
-            />
-            {img.caption && (
-              <figcaption style={{ marginTop: 5, fontFamily: font.sans, fontSize: 10, lineHeight: 1.35, fontStyle: "italic", color: "#767171" }}>
-                {img.caption}
-              </figcaption>
-            )}
-          </figure>
+          <div style={{ ...informeText, display: "flex", gap: 16, paddingLeft: 26, fontWeight: 600, textTransform: "uppercase" }}>
+            <span style={{ minWidth: 14 }}>{block.number}.</span>
+            <span>{block.title || `Punto ${block.number}`}</span>
+          </div>
         );
-      })}
-    </div>
-  );
+      }
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 10, borderBottom: "1px solid #e3e0dd" }}>
+          <span
+            style={{
+              width: 42,
+              height: 42,
+              flexShrink: 0,
+              borderRadius: 12,
+              background: "#ffce00",
+              color: "#242121",
+              display: "grid",
+              placeItems: "center",
+              fontFamily: font.display,
+              fontWeight: 700,
+              fontSize: 25,
+            }}
+          >
+            {block.number}
+          </span>
+          <span style={{ fontFamily: font.display, fontWeight: 700, fontSize: 26, lineHeight: 1.1, color: "#242121" }}>
+            {block.title || `Punto ${block.number}`}
+          </span>
+        </div>
+      );
+
+    case "html":
+      return (
+        <div
+          className="dossier-richtext"
+          style={
+            informe
+              ? { ...informeText, textAlign: "justify" }
+              : { fontFamily: font.sans, fontSize: 12.5, lineHeight: 1.62, color: "#433f3f" }
+          }
+          dangerouslySetInnerHTML={{ __html: block.html }}
+        />
+      );
+
+    case "images": {
+      const single = block.layout === "grid-1";
+      return (
+        <div style={{ display: "flex", gap: GAP, justifyContent: single ? "center" : "flex-start" }}>
+          {block.images.map((img) => {
+            const box = imageBox(img, block.layout, block.contentW);
+            return (
+              <figure key={img.id} style={{ margin: 0, width: box.w }}>
+                <img
+                  src={img.url}
+                  alt={img.caption}
+                  crossOrigin="anonymous"
+                  style={{ width: box.w, height: box.h, objectFit: "cover", borderRadius: informe ? 4 : 8, display: "block", background: "#f0eeeb" }}
+                />
+                {img.caption && (
+                  <figcaption style={{ marginTop: 5, fontFamily: font.sans, fontSize: 10, lineHeight: 1.35, fontStyle: "italic", color: "#767171" }}>
+                    {img.caption}
+                  </figcaption>
+                )}
+              </figure>
+            );
+          })}
+        </div>
+      );
+    }
+
+    case "closing": {
+      const { stampUrl, signatureUrl, signerCompany } = block.branding;
+      const hasImages = block.showSignature && (stampUrl || signatureUrl);
+      const text = informe ? informeText : { fontFamily: font.sans, fontSize: 12.5, lineHeight: 1.55, color: "#433f3f" };
+      const signer = block.signer.endsWith(".") ? block.signer : `${block.signer}.`;
+      return (
+        <div style={text}>
+          {block.text && <p style={{ margin: 0 }}>{block.text}</p>}
+          {hasImages ? (
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 26, height: 104, marginTop: 30, marginLeft: -18 }}>
+              {stampUrl && <img src={stampUrl} alt="Sello" crossOrigin="anonymous" style={{ height: 100, maxWidth: 110, objectFit: "contain" }} />}
+              {signatureUrl && (
+                <img src={signatureUrl} alt="Firma" crossOrigin="anonymous" style={{ height: 92, maxWidth: 170, objectFit: "contain" }} />
+              )}
+            </div>
+          ) : (
+            // Hueco para firmar a mano si se imprime
+            <div style={{ height: block.showSignature ? 70 : 24 }} />
+          )}
+          <p style={{ margin: "8px 0 0" }}>FDO: {signerCompany}</p>
+          <p style={{ margin: "12px 0 0" }}>{signer}</p>
+        </div>
+      );
+    }
+  }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Páginas                                                            */
+/* ------------------------------------------------------------------ */
 
 const pageStyle: React.CSSProperties = {
   width: PAGE_W,
@@ -222,7 +351,69 @@ const pageStyle: React.CSSProperties = {
   color: "#433f3f",
 };
 
+function PageBlocks({ blocks, layout }: { blocks: PlacedBlock[]; layout: PageLayout }) {
+  return (
+    <div style={{ position: "absolute", top: layout.contentTop, left: layout.padLeft, width: layout.contentW, height: layout.contentH, overflow: "hidden" }}>
+      {blocks.map(({ block, space }) => (
+        <div key={block.key} style={{ marginTop: space }}>
+          <BlockView block={block} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Hoja con el membrete del informe técnico de Aislaser */
+export function InformePage({ blocks, pageNumber, totalPages }: { blocks: PlacedBlock[]; pageNumber: number; totalPages: number }) {
+  const layout = LAYOUTS.informe;
+  return (
+    <div data-dossier-page="" style={pageStyle}>
+      {/* Membrete */}
+      <div style={{ position: "absolute", top: 14, left: layout.padLeft - 18 }}>
+        <DocLogo height={40} />
+        <p style={{ margin: "12px 0 0 2px", fontSize: 12, color: LETTERHEAD_YELLOW, letterSpacing: "0.01em" }}>{company.letterheadTagline}</p>
+      </div>
+      {totalPages > 1 && (
+        <p style={{ position: "absolute", top: 44, right: layout.padLeft, margin: 0, fontSize: 9.5, color: "#9f9a99" }}>
+          Página {pageNumber} de {totalPages}
+        </p>
+      )}
+
+      {/* Registro y CIF en el margen izquierdo, como en el membrete original */}
+      <p
+        style={{
+          position: "absolute",
+          left: 52,
+          top: 575,
+          margin: 0,
+          transform: "translate(-50%, -50%) rotate(-90deg)",
+          whiteSpace: "nowrap",
+          fontSize: 9.5,
+          color: "#1f3864",
+          letterSpacing: "0.02em",
+        }}
+      >
+        Nº Registro. {company.registry} – C.I.F: {company.cif}
+      </p>
+
+      <PageBlocks blocks={blocks} layout={layout} />
+
+      {/* Pie del membrete */}
+      <div style={{ position: "absolute", left: 18, right: 18, top: 1060, textAlign: "center" }}>
+        <p style={{ margin: 0, fontSize: 8.3, color: LETTERHEAD_YELLOW, textDecoration: "underline", textUnderlineOffset: 2, whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>
+          {company.activities.join("-")}
+        </p>
+        <p style={{ margin: "9px 0 0", fontSize: 9.5, color: "#000000" }}>
+          Polígono Industrial. Nave, 2 y 3 – Tel./Fax {company.landline.label} – Móvil. {company.phones[0].label} –{" "}
+          {company.address.postalCode} <strong>{company.address.city.toUpperCase()}</strong> ({company.address.province})
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function CoverPage({ dossier }: { dossier: Dossier }) {
+  const pad = LAYOUTS.portada.padLeft;
   const info = [
     { label: "Cliente", value: dossier.client_name },
     { label: "Obra / ubicación", value: dossier.location },
@@ -232,14 +423,14 @@ export function CoverPage({ dossier }: { dossier: Dossier }) {
 
   return (
     <div data-dossier-page="" style={pageStyle}>
-      <div style={{ height: 96, padding: `0 ${PAD_X}px`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ height: 96, padding: `0 ${pad}px`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <DocLogo height={34} />
         <span style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 10, fontWeight: 800, letterSpacing: "0.24em", color: "#767171" }}>
           DOSIER TÉCNICO <DocDots />
         </span>
       </div>
 
-      <div style={{ position: "relative", height: 500, margin: `0 ${PAD_X}px`, borderRadius: 18, overflow: "hidden", background: "#242121" }}>
+      <div style={{ position: "relative", height: 500, margin: `0 ${pad}px`, borderRadius: 18, overflow: "hidden", background: "#242121" }}>
         {dossier.cover_url ? (
           <img src={dossier.cover_url} alt="" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         ) : (
@@ -256,7 +447,7 @@ export function CoverPage({ dossier }: { dossier: Dossier }) {
         <span style={{ position: "absolute", left: 0, top: 36, width: 8, height: 90, background: "#ffce00" }} />
       </div>
 
-      <div style={{ padding: `40px ${PAD_X}px 0` }}>
+      <div style={{ padding: `40px ${pad}px 0` }}>
         {dossier.subtitle && (
           <p style={{ margin: 0, fontSize: 12, fontWeight: 800, letterSpacing: "0.2em", textTransform: "uppercase", color: "#a88800" }}>{dossier.subtitle}</p>
         )}
@@ -284,7 +475,7 @@ export function CoverPage({ dossier }: { dossier: Dossier }) {
           height: 74,
           background: "#242121",
           borderTop: "4px solid #ffce00",
-          padding: `0 ${PAD_X}px`,
+          padding: `0 ${pad}px`,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -314,9 +505,10 @@ export function ContentPage({
   pageNumber: number;
   totalPages: number;
 }) {
+  const layout = LAYOUTS.portada;
   return (
     <div data-dossier-page="" style={pageStyle}>
-      <div style={{ position: "absolute", top: 40, left: PAD_X, right: PAD_X }}>
+      <div style={{ position: "absolute", top: 40, left: layout.padLeft, right: layout.padLeft }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20 }}>
           <DocLogo height={22} />
           <span
@@ -341,21 +533,13 @@ export function ContentPage({
         </div>
       </div>
 
-      <div style={{ position: "absolute", top: HEADER_H, left: PAD_X, width: CONTENT_W, height: CONTENT_H, overflow: "hidden" }}>
-        {blocks.map(({ block, space }) => (
-          <Fragment key={block.key}>
-            <div style={{ marginTop: space }}>
-              <BlockView block={block} />
-            </div>
-          </Fragment>
-        ))}
-      </div>
+      <PageBlocks blocks={blocks} layout={layout} />
 
       <div
         style={{
           position: "absolute",
-          left: PAD_X,
-          right: PAD_X,
+          left: layout.padLeft,
+          right: layout.padLeft,
           bottom: 34,
           borderTop: "1px solid #e3e0dd",
           paddingTop: 12,

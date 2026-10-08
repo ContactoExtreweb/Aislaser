@@ -1,4 +1,6 @@
 export type DossierStatus = "borrador" | "terminado";
+/** "informe": formato carta del informe técnico de Aislaser · "portada": dosier con portada fotográfica */
+export type DossierTemplate = "informe" | "portada";
 export type ImageLayout = "grid-1" | "grid-2" | "grid-3";
 
 export type DossierImage = {
@@ -36,6 +38,16 @@ export type Dossier = {
   cover_image_path: string | null;
   cover_url: string | null;
   status: DossierStatus;
+  template: DossierTemplate;
+  /** "A/A del técnico" */
+  attention: string;
+  /** "INFORME REALIZADO POR" */
+  prepared_by: string;
+  /** Lugar de emisión: "Se emite este informe técnico en …" */
+  issue_place: string;
+  /** Firmante; vacío = el de Ajustes */
+  signer_name: string;
+  show_signature: boolean;
   created_at: string;
   updated_at: string;
   points: DossierPoint[];
@@ -43,8 +55,37 @@ export type Dossier = {
 
 export type DossierFields = Pick<
   Dossier,
-  "title" | "subtitle" | "client_name" | "location" | "work_date" | "reference" | "intro" | "status"
+  | "title"
+  | "subtitle"
+  | "client_name"
+  | "location"
+  | "work_date"
+  | "reference"
+  | "intro"
+  | "status"
+  | "template"
+  | "attention"
+  | "prepared_by"
+  | "issue_place"
+  | "signer_name"
+  | "show_signature"
 >;
+
+/** Datos de empresa para el cierre del documento (sello y firma desde Ajustes) */
+export type Branding = {
+  signerName: string;
+  signerCompany: string;
+  /** URLs firmadas temporales del bucket privado "firmas" (o null) */
+  stampUrl: string | null;
+  signatureUrl: string | null;
+};
+
+export const DEFAULT_BRANDING: Branding = {
+  signerName: "Isidro Calvo Gallego",
+  signerCompany: "AISLASER, C.B.",
+  stampUrl: null,
+  signatureUrl: null,
+};
 
 export type PointFields = Pick<DossierPoint, "title" | "body" | "image_layout">;
 

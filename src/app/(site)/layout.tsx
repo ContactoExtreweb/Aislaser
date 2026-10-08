@@ -14,6 +14,8 @@ const jsonLd = {
   logo: `${siteUrl}/brand/aislaser-logo.svg`,
   image: `${siteUrl}/og.jpg`,
   telephone: "+34609005163",
+  faxNumber: "+34924851823",
+  taxID: company.cif,
   email: company.email,
   address: {
     "@type": "PostalAddress",

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DossierWorkspace } from "@/components/panel/editor/DossierWorkspace";
-import { hydrateDossier } from "@/lib/dossier/supabase-repo";
+import { getBranding } from "@/lib/dossier/branding";
+import { hydrateDossier, needsInformeMigration } from "@/lib/dossier/supabase-repo";
 import { getSupabaseServer } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Editar dosier" };
@@ -10,16 +11,21 @@ export default async function EditDossierPage({ params }: PageProps<"/panel/dosi
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const supabase = await getSupabaseServer();
-  const [{ data: dossier }, { data: points }, { data: images }] = await Promise.all([
-    supabase
-      .from("dossiers")
-      .select("id, title, subtitle, client_name, location, work_date, reference, intro, cover_image_path, status, created_at, updated_at")
-      .eq("id", id)
-      .maybeSingle(),
+  const [{ data: dossier }, { data: points }, { data: images }, { branding }] = await Promise.all([
+    // select("*") para que funcione también antes de ejecutar la migración 002
+    supabase.from("dossiers").select("*").eq("id", id).maybeSingle(),
     supabase.from("dossier_points").select("id, dossier_id, position, title, body, image_layout").eq("dossier_id", id),
     supabase.from("dossier_images").select("id, dossier_id, point_id, storage_path, caption, position, width, height").eq("dossier_id", id),
+    getBranding(supabase),
   ]);
   if (!dossier) notFound();
 
-  return <DossierWorkspace key={dossier.id} initial={hydrateDossier(dossier, points ?? [], images ?? [])} />;
+  return (
+    <DossierWorkspace
+      key={dossier.id}
+      initial={hydrateDossier(dossier, points ?? [], images ?? [])}
+      branding={branding}
+      needsMigration={needsInformeMigration(dossier)}
+    />
+  );
 }

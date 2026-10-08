@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import { imageFilesFrom } from "@/lib/dossier/image";
-import type { DossierPoint } from "@/lib/dossier/types";
+import type { DossierPoint, DossierTemplate } from "@/lib/dossier/types";
 import { PointImages } from "./PointImages";
 import { RichText } from "./RichText";
 import type { DossierEditorApi, PendingUpload } from "./useDossierEditor";
@@ -13,13 +13,16 @@ export function PointCard({
   total,
   pending,
   api,
+  template,
 }: {
   point: DossierPoint;
   index: number;
   total: number;
   pending: PendingUpload[];
   api: DossierEditorApi;
+  template: DossierTemplate;
 }) {
+  const informe = template === "informe";
   return (
     <section
       id={`punto-${point.id}`}
@@ -42,8 +45,10 @@ export function PointCard({
         <input
           value={point.title}
           onChange={(e) => api.updatePoint(point.id, { title: e.target.value })}
-          placeholder={`Título del punto ${index + 1} (opcional)`}
-          className="min-w-0 flex-1 rounded-xl px-2 py-2 font-display text-xl font-bold text-ink-900 outline-none placeholder:font-sans placeholder:text-base placeholder:font-semibold placeholder:text-ink-400 hover:bg-ink-50 focus:bg-ink-50 sm:text-2xl"
+          placeholder={informe ? `Título del apartado ${index + 1} (ej.: Objeto del informe)` : `Título del punto ${index + 1} (opcional)`}
+          className={`min-w-0 flex-1 rounded-xl px-2 py-2 font-display text-xl font-bold text-ink-900 outline-none placeholder:font-sans placeholder:text-base placeholder:font-semibold placeholder:normal-case placeholder:text-ink-400 hover:bg-ink-50 focus:bg-ink-50 sm:text-2xl ${
+            informe ? "uppercase" : ""
+          }`}
           maxLength={160}
         />
         <div className="flex shrink-0 items-center gap-1">

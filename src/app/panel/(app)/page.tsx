@@ -16,6 +16,7 @@ type Row = {
   location: string;
   work_date: string | null;
   status: "borrador" | "terminado";
+  template?: "informe" | "portada";
   cover_image_path: string | null;
   updated_at: string;
   dossier_points: { count: number }[];
@@ -28,7 +29,7 @@ export default async function PanelHome({ searchParams }: PageProps<"/panel">) {
   const supabase = await getSupabaseServer();
   let request = supabase
     .from("dossiers")
-    .select("id, title, client_name, location, work_date, status, cover_image_path, updated_at, dossier_points(count), dossier_images(count)")
+    .select("*, dossier_points(count), dossier_images(count)")
     .order("updated_at", { ascending: false });
   if (query) {
     const like = `%${query.replace(/[%_,()]/g, " ")}%`;
@@ -42,19 +43,19 @@ export default async function PanelHome({ searchParams }: PageProps<"/panel">) {
       <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-extrabold tracking-[0.22em] text-ink-400 uppercase">Panel de Aislaser</p>
-          <h1 className="mt-2 text-5xl font-bold">Mis dosieres</h1>
+          <h1 className="mt-2 text-5xl font-bold">Informes y dosieres</h1>
         </div>
         <form action={createDossier}>
           <button type="submit" className="btn-primary text-base">
-            <Plus className="size-5" strokeWidth={2.5} /> Nuevo dosier
+            <Plus className="size-5" strokeWidth={2.5} /> Nuevo informe
           </button>
         </form>
       </div>
 
       <ol className="mt-8 grid gap-3 sm:grid-cols-4">
         {[
-          { icon: Plus, t: "Crea un dosier", d: "Pon el título, el cliente y una foto de portada." },
-          { icon: ListOrdered, t: "Escribe cada punto", d: "1, 2, 3… cada uno con su explicación." },
+          { icon: Plus, t: "Crea un informe", d: "Rellena A/A, «Para» y el título." },
+          { icon: ListOrdered, t: "Escribe cada apartado", d: "1. Objeto, 2. Pruebas, 3. Conclusiones…" },
           { icon: Camera, t: "Añade sus fotos", d: "Arrástralas, pégalas o hazlas con el móvil." },
           { icon: Download, t: "Descárgalo", d: "En PDF o en imágenes, listo para enviar." },
         ].map((s, i) => (
@@ -84,8 +85,8 @@ export default async function PanelHome({ searchParams }: PageProps<"/panel">) {
           <span className="grid size-16 place-items-center rounded-2xl bg-ink-100 text-ink-500">
             <FileText className="size-8" />
           </span>
-          <p className="mt-6 font-display text-3xl font-bold text-ink-900">{query ? "No hay resultados" : "Aún no tienes dosieres"}</p>
-          <p className="mt-2 text-ink-500">{query ? "Prueba con otra búsqueda." : "Pulsa en «Nuevo dosier» para crear el primero."}</p>
+          <p className="mt-6 font-display text-3xl font-bold text-ink-900">{query ? "No hay resultados" : "Aún no tienes informes"}</p>
+          <p className="mt-2 text-ink-500">{query ? "Prueba con otra búsqueda." : "Pulsa en «Nuevo informe» para crear el primero."}</p>
         </div>
       ) : (
         <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -104,6 +105,9 @@ export default async function PanelHome({ searchParams }: PageProps<"/panel">) {
                       <ImageIcon className="size-10" />
                     </span>
                   )}
+                  <span className="absolute top-3 right-3 rounded-full bg-ink-950/80 px-3 py-1 text-[11px] font-extrabold tracking-wider text-laser-500 uppercase backdrop-blur">
+                    {d.template === "portada" ? "Dosier" : "Informe"}
+                  </span>
                   <span
                     className={`absolute top-3 left-3 rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wider uppercase ${
                       d.status === "terminado" ? "bg-emerald-500 text-white" : "bg-white text-ink-700"
@@ -114,7 +118,7 @@ export default async function PanelHome({ searchParams }: PageProps<"/panel">) {
                 </Link>
                 <div className="flex flex-1 flex-col p-5">
                   <Link href={`/panel/dosieres/${d.id}`} className="font-display text-2xl leading-tight font-bold text-ink-900 hover:underline">
-                    {d.title || "Dosier sin título"}
+                    {d.title || (d.template === "portada" ? "Dosier sin título" : "Informe sin título")}
                   </Link>
                   <p className="mt-1 text-sm text-ink-500">{[d.client_name, d.location].filter(Boolean).join(" · ") || "Sin cliente"}</p>
                   <div className="mt-auto flex items-center justify-between pt-5">

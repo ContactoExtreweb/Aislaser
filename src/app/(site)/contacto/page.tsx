@@ -41,6 +41,15 @@ export default async function ContactoPage({ searchParams }: PageProps<"/contact
                 </span>
               </a>
             ))}
+            <a href={company.landline.href} className="flex items-center gap-5 rounded-3xl border border-ink-200 p-6 transition-colors hover:border-ink-900">
+              <span className="grid size-14 place-items-center rounded-2xl bg-ink-900 text-laser-500">
+                <Phone className="size-6" />
+              </span>
+              <span>
+                <span className="block text-xs font-bold tracking-widest text-ink-400 uppercase">Teléfono fijo / Fax</span>
+                <span className="font-display text-2xl font-bold text-ink-900">{company.landline.label}</span>
+              </span>
+            </a>
             <a href={`mailto:${company.email}`} className="flex items-center gap-5 rounded-3xl border border-ink-200 p-6 transition-colors hover:border-ink-900">
               <span className="grid size-14 place-items-center rounded-2xl bg-ink-900 text-laser-500">
                 <Mail className="size-6" />
