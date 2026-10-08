@@ -21,26 +21,25 @@ export function Hero() {
         fill
         preload
         sizes="100vw"
-        className="-z-20 scale-105 object-cover object-[70%_center] opacity-70"
+        className="-z-20 scale-105 object-cover object-[70%_center]"
       />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-ink-950 via-ink-950/80 to-ink-950/10" />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink-950 via-transparent to-ink-950/50" />
-      <div className="bg-grid-dark absolute inset-0 -z-10 [mask-image:linear-gradient(to_right,black,transparent_70%)]" />
+      {/* Foto a pantalla completa, sin degradado: sólo un velo oscuro uniforme para que se lea el texto */}
+      <div className="absolute inset-0 -z-10 bg-ink-950/55" />
 
       <div className="container-x flex flex-1 flex-col justify-center pt-32 pb-12 lg:pt-36">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/5 py-1.5 pr-4 pl-2 text-xs font-bold tracking-wide text-ink-200 backdrop-blur">
+          <div className="inline-flex items-center gap-3 rounded-full border border-white/20 bg-ink-950/40 py-1.5 pr-4 pl-2 text-xs font-bold tracking-wide text-white backdrop-blur">
             <span className="grid size-6 place-items-center rounded-full bg-laser-500">
               <span className="size-2 animate-pulse-dot rounded-full bg-ink-900" />
             </span>
             Poliurea · Poliuretano · Aislamientos
           </div>
 
-          <h1 className="mt-7 text-[2.9rem] leading-[0.95] font-bold text-white sm:text-7xl lg:text-[5.6rem]">
+          <h1 className="mt-7 text-[2.9rem] leading-[0.95] font-bold text-white [text-shadow:0_2px_24px_rgb(0_0_0/0.45)] sm:text-7xl lg:text-[5.6rem]">
             Impermeabilización técnica con <span className="text-laser-500">poliurea</span> y poliuretano
           </h1>
 
-          <p className="mt-7 max-w-xl text-lg leading-relaxed text-ink-200 sm:text-xl">
+          <p className="mt-7 max-w-xl text-lg leading-relaxed text-white/90 [text-shadow:0_1px_12px_rgb(0_0_0/0.6)] sm:text-xl">
             Recubrimientos de última generación para cubiertas, piscinas, naves y grandes infraestructuras. Aeropuertos,
             centrales energéticas, hospitales y viviendas de toda España confían su estanqueidad a nuestro equipo.
           </p>
