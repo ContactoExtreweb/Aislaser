@@ -41,8 +41,11 @@ export function createDemoRepo(): DossierRepo {
   };
 }
 
+// Fecha fija durante la sesión: la demo se comporta como un informe guardado (misma versión al volver)
+const DEMO_TIME = new Date().toISOString();
+
 export function demoDossier(): Dossier {
-  const now = new Date().toISOString();
+  const now = DEMO_TIME;
   const img = (pointId: string, n: number, src: string, caption: string): DossierImage => ({
     id: `${pointId}-img-${n}`,
     dossier_id: "demo",

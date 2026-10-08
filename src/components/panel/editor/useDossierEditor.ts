@@ -17,12 +17,17 @@ const RETRY_DELAYS = [2_000, 5_000, 15_000, 30_000];
  * «Atrás» del navegador, Next reutiliza la página cacheada con los datos antiguos:
  * sin esto, la siguiente edición machacaría lo que ya se había guardado.
  */
-const latestById = new Map<string, { dossier: Dossier; at: number }>();
+const latestById = new Map<string, { dossier: Dossier; seededFrom: string }>();
 
+/**
+ * Se reutiliza la copia local sólo si la página trae exactamente los mismos datos con los que
+ * se abrió (es la copia cacheada del botón «Atrás»). Cualquier versión distinta del servidor
+ * manda, sin depender de que el reloj del ordenador coincida con el del servidor.
+ */
 function initialState(initial: Dossier) {
   const cached = latestById.get(initial.id);
-  // Si el servidor tiene algo más reciente (editado en otro dispositivo), manda el servidor
-  if (cached && Date.parse(initial.updated_at) <= cached.at) return cached.dossier;
+  if (cached && cached.seededFrom === initial.updated_at) return cached.dossier;
+  latestById.set(initial.id, { dossier: initial, seededFrom: initial.updated_at });
   return initial;
 }
 
@@ -38,9 +43,10 @@ export function useDossierEditor(initial: Dossier, repo: DossierRepo) {
 
   // Fuente de verdad síncrona (el estado de React sólo la refleja para pintar)
   const dossierRef = useRef(dossier);
+  const seededFrom = useRef(latestById.get(initial.id)?.seededFrom ?? initial.updated_at);
   const apply = useCallback((fn: (d: Dossier) => Dossier) => {
     dossierRef.current = fn(dossierRef.current);
-    latestById.set(dossierRef.current.id, { dossier: dossierRef.current, at: Date.now() });
+    latestById.set(dossierRef.current.id, { dossier: dossierRef.current, seededFrom: seededFrom.current });
     setDossier(dossierRef.current);
   }, []);
 
