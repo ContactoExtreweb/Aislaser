@@ -52,7 +52,11 @@ Comandos: `npm run build` · `npm start` · `npm run typecheck`.
 
 ## 3. Despliegue (Netlify)
 
-El repositorio está conectado a Netlify: **cada push a `main` se publica automáticamente**. `netlify.toml` fija Node 22 y las variables públicas de Supabase, así que no hace falta configurar nada más en Netlify.
+El repositorio está conectado a Netlify (https://aislaser.netlify.app): **cada push a `main` se publica automáticamente**. `netlify.toml` fija Node 22, las variables públicas de Supabase y el motor oficial de Next.js (`@netlify/plugin-nextjs`, fijado en `package.json`), así que no hace falta configurar nada más en Netlify.
+
+> Si la web publicada da «Page not found» en todas las rutas, es que Netlify no está usando su motor de Next.js y está publicando la carpeta `.next` como archivos sueltos: comprobar que el `[[plugins]]` de `netlify.toml` sigue ahí.
+
+Para probar la compilación de Netlify en local: `npx netlify-cli build --offline` y después `npx netlify-cli serve --offline`.
 
 1. Cuando el dominio esté listo, apuntar `aislaser.es` / `www.aislaser.es` al sitio de Netlify.
 2. En Supabase → Authentication → URL Configuration, añadir la dirección de Netlify (y el dominio final) en *Redirect URLs*, p. ej. `https://<sitio>.netlify.app/auth/callback`, para que funcione «¿Has olvidado tu contraseña?».
