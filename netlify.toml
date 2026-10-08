@@ -1,4 +1,4 @@
-# Despliegue en Netlify (detecta Next.js y usa su adaptador oficial automáticamente)
+# Despliegue en Netlify con su motor oficial de Next.js
 [build]
   command = "npm run build"
   publish = ".next"
@@ -12,3 +12,8 @@
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_wYSVl_8YNZ6belsHY-L8aw_fZqHjQZf"
   # Dominio definitivo (para SEO, sitemap y enlaces canónicos)
   NEXT_PUBLIC_SITE_URL = "https://www.aislaser.es"
+
+# Motor de Next.js declarado explícitamente: el sitio se creó cuando el repositorio aún no
+# tenía Next.js y Netlify no lo activó solo (publicaba la carpeta .next como archivos sueltos).
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
