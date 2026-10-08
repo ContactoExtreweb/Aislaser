@@ -320,7 +320,7 @@ export function BlockView({ block }: { block: Block }) {
         <div style={text}>
           {block.text && <p style={{ margin: 0 }}>{block.text}</p>}
           {hasImages ? (
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 26, height: 104, marginTop: 30, marginLeft: -18 }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 26, height: 104, marginTop: 30 }}>
               {stampUrl && <img src={stampUrl} alt="Sello" crossOrigin="anonymous" style={{ height: 100, maxWidth: 110, objectFit: "contain" }} />}
               {signatureUrl && (
                 <img src={signatureUrl} alt="Firma" crossOrigin="anonymous" style={{ height: 92, maxWidth: 170, objectFit: "contain" }} />
