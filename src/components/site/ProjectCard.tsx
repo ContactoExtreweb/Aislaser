@@ -32,7 +32,7 @@ export function ProjectCard({ project, sizes, className }: { project: Project; s
               <MapPin className="size-3.5 text-laser-500" /> {project.location}
             </>
           ) : (
-            <>{project.images.length} fotografías</>
+            <>{project.images.length === 1 ? "1 fotografía" : `${project.images.length} fotografías`}</>
           )}
         </p>
       </div>

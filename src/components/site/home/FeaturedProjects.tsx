@@ -9,6 +9,7 @@ import { pickFeatured } from "@/lib/obras";
 /** Las obras marcadas como «destacada» en el panel */
 export function FeaturedProjects({ projects }: { projects: Project[] }) {
   const items = pickFeatured(projects);
+  if (items.length === 0) return null;
   const layout = [
     "lg:col-span-7 lg:row-span-2 min-h-[420px]",
     "lg:col-span-5",
@@ -27,7 +28,7 @@ export function FeaturedProjects({ projects }: { projects: Project[] }) {
             intro="Aeropuertos, centrales, hospitales, piscinas y edificios singulares en toda España. Una selección de nuestro trabajo."
           />
           <Link href="/obras" className="btn-dark shrink-0 self-start lg:self-auto">
-            Ver las {projects.length} obras <ArrowUpRight className="size-4" />
+            {projects.length === 1 ? "Ver la obra" : `Ver las ${projects.length} obras`} <ArrowUpRight className="size-4" />
           </Link>
         </div>
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-12">

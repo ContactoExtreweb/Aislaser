@@ -122,13 +122,15 @@ Las obras que se ven en la web (página *Obras*, portada y obras relacionadas de
 3. **Datos:** sector (obligatorio para publicar), lugar, año, trabajos realizados (enlazan con cada servicio), resumen y descripción (las líneas que empiezan por «- » salen como lista). *Destacar en la portada* la pone en «Proyectos que hablan por nosotros» (las 6 primeras destacadas).
 4. **Guardar y publicar:** sale en la web al momento. *Quitar de la web* la deja como borrador. Las flechas del listado cambian el orden en que salen.
 
-Las fotos se guardan en el bucket público `galeria` y la web las lee con la clave publicable (el RLS sólo deja ver lo publicado). Mientras la galería de la base de datos esté vacía o no exista, la web enseña las obras de `src/content/projects.ts`.
+Las fotos se guardan en el bucket público `galeria` y la web las lee con la clave publicable (el RLS sólo deja ver lo publicado). Sólo si la galería no existe (Supabase sin configurar o sin la migración 004) la web enseña las obras de `src/content/projects.ts`; con la galería creada, enseña exactamente lo publicado en el panel.
 
-**Pasar las obras de la web anterior a la galería** (una sola vez, después de ejecutar la migración 004; se puede repetir sin duplicar nada):
+**Pasar las obras de la web anterior a la galería** (una sola vez, justo después de ejecutar la migración 004: mientras la galería esté vacía la web no enseña obras). Ya está hecho en el Supabase de Aislaser (32 obras, 123 fotos):
 
 ```bash
 ADMIN_EMAIL=correo@del.admin ADMIN_PASSWORD=… node scripts/importar-obras.mjs   # --simular para ver qué haría
 ```
+
+Sólo importa si la galería está vacía (crea todas las obras de una vez y las publica juntas al final), así que repetirlo nunca recupera obras borradas en el panel. Si una importación se cortó, `--completar` crea las que falten, sube las fotos que falten y publica las importadas; úsalo sólo justo después del corte, no tras editar la galería. Necesita Node 22.18 o posterior (con Node 22.6–22.17: `node --experimental-strip-types scripts/importar-obras.mjs`).
 
 ## 6. Pendiente de revisar con el cliente
 

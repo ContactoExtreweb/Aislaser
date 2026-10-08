@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { unstable_rethrow, useRouter } from "next/navigation";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   ExternalLink,
   EyeOff,
   LoaderCircle,
+  RotateCcw,
   Save,
   Send,
   Star,
@@ -44,8 +45,12 @@ const card = "rounded-[1.75rem] border border-ink-200 bg-white shadow-[0_20px_50
 /** Las fotos de la web se guardan a 2000 px como mucho: nítidas en pantalla grande y ligeras */
 const MAX_SIDE = 2000;
 
+/** Si una Server Action no llega (sin conexión, web recién actualizada…) */
+const NETWORK_ERROR = "No se ha podido conectar. Comprueba la conexión y vuelve a intentarlo; lo escrito sigue aquí.";
+
 const errorText = (e: unknown) => {
   const msg = e instanceof Error ? e.message : String(e);
+  if (/failed to fetch|network|load failed|server action/i.test(msg)) return "no se ha podido conectar; inténtalo otra vez";
   if (/exceeded the maximum allowed size|too large|413/i.test(msg)) return "la foto pesa más de 5 MB";
   if (/mime type|not supported/i.test(msg)) return "formato de imagen no admitido";
   if (/jwt|unauthori[sz]ed|row-level security|403/i.test(msg)) return "la sesión ha caducado: vuelve a entrar en el panel";
@@ -62,36 +67,87 @@ function randomId() {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] }) {
+type PhotoChange = { type: "order"; ids: string[] } | { type: "remove"; id: string };
+
+/* Copia local de lo escrito en el formulario, por si se cierra la pestaña o caduca la sesión */
+type Draft = {
+  titulo: string;
+  sector: string;
+  ubicacion: string;
+  anio: string;
+  resumen: string;
+  descripcion: string;
+  destacada: boolean;
+  servicios: string[];
+  savedAt: number;
+};
+const DRAFT_FIELDS = ["titulo", "ubicacion", "anio", "resumen", "descripcion"] as const;
+const draftKey = (id: string) => `aislaser:obra-sin-guardar:${id}`;
+
+function readForm(form: HTMLFormElement): Draft {
+  const data = new FormData(form);
+  return {
+    ...(Object.fromEntries(DRAFT_FIELDS.map((k) => [k, String(data.get(k) ?? "")])) as Pick<Draft, (typeof DRAFT_FIELDS)[number]>),
+    sector: String(data.get("sector") ?? ""),
+    destacada: data.get("destacada") === "on",
+    servicios: data.getAll("servicios").map(String),
+    savedAt: Date.now(),
+  };
+}
+
+function sameAsSaved(d: Draft, o: WebObra) {
+  return (
+    DRAFT_FIELDS.every((k) => d[k].trim() === (o[k] ?? "").trim()) &&
+    d.sector === (o.sector ?? "") &&
+    d.destacada === o.destacada &&
+    [...d.servicios].sort().join() === [...o.servicios].sort().join()
+  );
+}
+
+export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: WebFoto[] }) {
   const router = useRouter();
   const [upload, setUpload] = useState<{ done: number; total: number } | null>(null);
   const uploadingRef = useRef(false);
   const [photoErrors, setPhotoErrors] = useState<string[]>([]);
   const [photoBusy, startPhotoBusy] = useTransition();
+  // Mover y borrar se ven al instante; si el servidor falla, vuelve a como estaba
+  const [fotos, changePhotos] = useOptimistic(savedFotos, (current: WebFoto[], change: PhotoChange) =>
+    change.type === "remove"
+      ? current.filter((f) => f.id !== change.id)
+      : change.ids.map((id) => current.find((f) => f.id === id)).filter((f): f is WebFoto => Boolean(f)),
+  );
 
   /* ------------------------------ Fotos ------------------------------ */
 
+  // Las fotos que llegan mientras se sube un lote se añaden a la cola del mismo lote
+  const queueRef = useRef<File[]>([]);
+
   async function uploadFiles(files: File[]) {
-    if (!files.length || uploadingRef.current) return;
+    if (!files.length) return;
+    queueRef.current.push(...files);
+    setUpload((u) => ({ done: u?.done ?? 0, total: (u?.total ?? 0) + files.length }));
+    if (uploadingRef.current) return;
     uploadingRef.current = true;
     setPhotoErrors([]);
-    setUpload({ done: 0, total: files.length });
     const bucket = getSupabaseBrowser().storage.from(GALLERY_BUCKET);
     const failed: string[] = [];
-    for (const [i, file] of files.entries()) {
+    let done = 0;
+    for (let file = queueRef.current.shift(); file; file = queueRef.current.shift()) {
       try {
         const { blob, width, height } = await prepareImage(file, { maxSide: MAX_SIDE, quality: 0.8 });
         const path = `${obra.id}/${randomId()}.jpg`;
-        // Las rutas no se reutilizan nunca: el navegador puede guardar las fotos un año
-        const { error } = await bucket.upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000", upsert: false });
+        // Las rutas no se reutilizan nunca. Caché de un día: si se borra una foto, deja de
+        // circular pronto (la web la sirve a través de su propio optimizador de imágenes)
+        const { error } = await bucket.upload(path, blob, { contentType: "image/jpeg", cacheControl: "86400", upsert: false });
         if (error) throw new Error(error.message);
         const result = await addObraPhoto(obra.id, path, width, height);
         if (result.error) throw new Error(result.error);
       } catch (e) {
         const msg = errorText(e);
-        failed.push(msg.startsWith("«") ? msg : `${file.name || `Foto ${i + 1}`}: ${msg}`);
+        failed.push(msg.startsWith("«") ? msg : `${file.name || `Foto ${done + 1}`}: ${msg}`);
       }
-      setUpload({ done: i + 1, total: files.length });
+      done++;
+      setUpload((u) => (u ? { ...u, done } : u));
     }
     uploadingRef.current = false;
     setUpload(null);
@@ -124,21 +180,55 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
     };
   }, []);
 
-  const runPhoto = (action: () => Promise<ObraResult>) =>
+  const runPhoto = (action: () => Promise<ObraResult>, optimistic?: PhotoChange) =>
     startPhotoBusy(async () => {
       setPhotoErrors([]);
-      const result = await action();
-      if (result.error) setPhotoErrors([result.error]);
+      if (optimistic) changePhotos(optimistic);
+      try {
+        const result = await action();
+        if (result.error) setPhotoErrors([result.error]);
+      } catch (e) {
+        unstable_rethrow(e);
+        setPhotoErrors([NETWORK_ERROR]);
+      }
     });
+
+  // Los textos de las fotos se guardan al salir del campo, sin bloquear los botones de las fotos
+  // (si no, el clic en «Portada» justo después de escribir se perdería)
+  const altPendingRef = useRef(new Set<string>());
+  const saveAlt = async (id: string, alt: string) => {
+    try {
+      const result = await updateObraPhotoAlt(id, alt);
+      if (result.error) setPhotoErrors([result.error]);
+      else altPendingRef.current.delete(id);
+    } catch {
+      setPhotoErrors([NETWORK_ERROR]);
+    }
+  };
 
   const moveTo = (from: number, to: number) => {
     const ids = fotos.map((f) => f.id);
     const [moved] = ids.splice(from, 1);
     ids.splice(to, 0, moved);
-    runPhoto(() => reorderObraPhotos(obra.id, ids));
+    runPhoto(() => reorderObraPhotos(obra.id, ids), { type: "order", ids });
   };
 
   const photosBusy = photoBusy || upload !== null;
+
+  // Las fotos se pueden soltar en cualquier parte de la sección (también mientras se suben otras)
+  const dropOnSection = {
+    onDragOver: (e: React.DragEvent) => {
+      if (Array.from(e.dataTransfer.types).includes("Files")) e.preventDefault();
+    },
+    onDrop: (e: React.DragEvent) => {
+      if (e.defaultPrevented) return; // ya lo ha recogido la zona de subida
+      const files = imageFilesFrom(e.dataTransfer.files);
+      if (files.length) {
+        e.preventDefault();
+        void uploadFiles(files);
+      }
+    },
+  };
 
   /* ------------------------------ Datos ------------------------------ */
 
@@ -149,24 +239,109 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
   const formRef = useRef<HTMLFormElement>(null);
   const [sector, setSector] = useState(obra.sector ?? "");
 
+  // Aviso al salir con cambios sin guardar, con fotos subiéndose o con un texto de foto a medias
+  const leaveGuard = useRef({ dirty, uploading: false });
+  leaveGuard.current = { dirty, uploading: upload !== null };
   useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    const pending = () => leaveGuard.current.dirty || leaveGuard.current.uploading || altPendingRef.current.size > 0;
+    const warn = (e: BeforeUnloadEvent) => {
+      if (pending()) e.preventDefault();
+    };
+    // Los enlaces del panel (menú, «Salir»…) cambian de página sin recargar: se pregunta antes
+    const onClick = (e: MouseEvent) => {
+      if (!pending() || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href]");
+      if (!a || a.getAttribute("target") === "_blank") return;
+      const message = leaveGuard.current.uploading
+        ? "Todavía se están subiendo fotos. Si sales ahora, las que falten no se subirán. ¿Salir igualmente?"
+        : "Hay cambios sin guardar. ¿Salir igualmente?";
+      if (!confirm(message)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, []);
+
+  // Al abrir la ficha: ¿quedó algo sin guardar la última vez?
+  const [pendingDraft, setPendingDraft] = useState<Draft | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey(obra.id));
+      const draft = raw ? (JSON.parse(raw) as Draft) : null;
+      if (draft && !sameAsSaved(draft, obra)) setPendingDraft(draft);
+      else if (raw) localStorage.removeItem(draftKey(obra.id));
+    } catch {
+      // Sin almacenamiento local (modo privado…): no pasa nada
+    }
+    // Sólo al montar (la ficha se monta de nuevo al cambiar de obra)
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function onFormChange() {
+    setDirty(true);
+    if (!formRef.current) return;
+    try {
+      localStorage.setItem(draftKey(obra.id), JSON.stringify(readForm(formRef.current)));
+    } catch {
+      // Sin almacenamiento local: sólo queda el aviso al salir
+    }
+  }
+
+  function restoreDraft(d: Draft) {
+    const form = formRef.current;
+    if (!form) return;
+    for (const k of DRAFT_FIELDS) {
+      const el = form.elements.namedItem(k);
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.value = d[k];
+    }
+    form.querySelectorAll<HTMLInputElement>('input[name="servicios"]').forEach((el) => (el.checked = d.servicios.includes(el.value)));
+    const destacada = form.elements.namedItem("destacada");
+    if (destacada instanceof HTMLInputElement) destacada.checked = d.destacada;
+    setSector(d.sector);
+    setPendingDraft(null);
+    setDirty(true);
+  }
+
+  function discardDraft() {
+    try {
+      localStorage.removeItem(draftKey(obra.id));
+    } catch {}
+    setPendingDraft(null);
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     formData.set("intent", intentRef.current);
-    intentRef.current = "save"; // Intro dentro de un campo = guardar sin cambiar el estado
+    intentRef.current = "save";
     startSaving(async () => {
       setResult({});
-      const r = await saveObra(obra.id, formData);
-      setResult(r);
-      if (!r.error) setDirty(false);
+      try {
+        const r = await saveObra(obra.id, formData);
+        setResult(r);
+        if (!r.error) {
+          setDirty(false);
+          discardDraft();
+        }
+      } catch (err) {
+        unstable_rethrow(err);
+        setResult({ error: NETWORK_ERROR });
+      }
     });
+  }
+
+  // Intro en un campo de texto guarda sin cambiar el estado. Sin esto, el navegador «pulsaría»
+  // el primer botón del formulario, que en un borrador es «Guardar y publicar»
+  function onFormKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== "Enter" || !(e.target instanceof HTMLInputElement) || e.target.type === "checkbox") return;
+    e.preventDefault();
+    intentRef.current = "save";
+    formRef.current?.requestSubmit();
   }
 
   const [deleting, startDeleting] = useTransition();
@@ -176,13 +351,7 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
-      <Link
-        href="/panel/obras"
-        onClick={(e) => {
-          if (dirty && !confirm("Hay cambios sin guardar. ¿Salir igualmente?")) e.preventDefault();
-        }}
-        className="inline-flex items-center gap-1.5 text-sm font-bold text-ink-500 hover:text-ink-900"
-      >
+      <Link href="/panel/obras" className="inline-flex items-center gap-1.5 text-sm font-bold text-ink-500 hover:text-ink-900">
         <ArrowLeft className="size-4" /> Obras de la web
       </Link>
       <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -210,7 +379,7 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
       )}
 
       {/* ------------------------------ 1. Fotos ------------------------------ */}
-      <section className={`${card} mt-8`} aria-labelledby="fotos-titulo">
+      <section className={`${card} mt-8`} aria-labelledby="fotos-titulo" {...dropOnSection}>
         <header className="flex flex-wrap items-center gap-3 border-b border-ink-100 px-4 py-4 sm:px-6">
           <span className="grid size-8 place-items-center rounded-lg bg-laser-500 font-display text-lg font-bold text-ink-900">1</span>
           <h2 id="fotos-titulo" className="text-2xl font-bold">
@@ -228,7 +397,7 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
               <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-white">
                 <div className="h-full rounded-full bg-ink-900 transition-all" style={{ width: `${(upload.done / upload.total) * 100}%` }} />
               </div>
-              <p className="text-xs text-ink-500">No cierres esta página hasta que termine.</p>
+              <p className="text-xs text-ink-500">No cierres esta página hasta que termine. Puedes soltar o pegar más fotos: se añaden a la cola.</p>
             </div>
           ) : (
             <ImageDropzone onFiles={uploadFiles} label="Añade las fotos de la obra (puedes elegir varias a la vez)" />
@@ -248,7 +417,7 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
           )}
 
           {fotos.length > 0 && (
-            <ul className={`grid grid-cols-2 gap-4 md:grid-cols-3 ${photoBusy ? "opacity-70" : ""}`}>
+            <ul className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${photoBusy ? "opacity-70" : ""}`}>
               {fotos.map((f, i) => (
                 <li key={f.id} className={`flex flex-col gap-2 rounded-2xl border p-2 ${i === 0 ? "border-laser-500 ring-4 ring-laser-500/20" : "border-ink-200"}`}>
                   <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-ink-100">
@@ -256,7 +425,7 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
                       src={galleryImageUrl(f.storage_path)}
                       alt={f.alt || `Foto ${i + 1}`}
                       fill
-                      sizes="(min-width: 768px) 300px, 50vw"
+                      sizes="(min-width: 1024px) 310px, (min-width: 640px) 50vw, 100vw"
                       className="object-cover"
                     />
                     {i === 0 && (
@@ -265,7 +434,7 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex flex-wrap items-center gap-0.5">
                     <IconButton label="Mover a la izquierda" disabled={photosBusy || i === 0} onClick={() => moveTo(i, i - 1)}>
                       <ChevronLeft className="size-5" />
                     </IconButton>
@@ -275,6 +444,8 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
                     {i > 0 && (
                       <button
                         type="button"
+                        aria-label="Poner de portada"
+                        title="Poner de portada"
                         disabled={photosBusy}
                         onClick={() => moveTo(i, 0)}
                         className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-ink-600 hover:bg-laser-500/20 hover:text-ink-900 disabled:opacity-40"
@@ -288,7 +459,7 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
                       className="ml-auto"
                       disabled={photosBusy}
                       onClick={() => {
-                        if (confirm(`¿Borrar la foto ${i + 1}? No se puede deshacer.`)) runPhoto(() => deleteObraPhoto(f.id));
+                        if (confirm(`¿Borrar la foto ${i + 1}? No se puede deshacer.`)) runPhoto(() => deleteObraPhoto(f.id), { type: "remove", id: f.id });
                       }}
                     >
                       <Trash2 className="size-4" />
@@ -299,9 +470,13 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
                     placeholder="Qué se ve (opcional)"
                     defaultValue={f.alt}
                     maxLength={OBRA_LIMITS.alt}
+                    onChange={(e) => {
+                      if (e.target.value.trim() !== f.alt) altPendingRef.current.add(f.id);
+                      else altPendingRef.current.delete(f.id);
+                    }}
                     onBlur={(e) => {
                       const alt = e.target.value.trim();
-                      if (alt !== f.alt) runPhoto(() => updateObraPhotoAlt(f.id, alt));
+                      if (alt !== f.alt) void saveAlt(f.id, alt);
                     }}
                     className="w-full rounded-lg border border-ink-200 px-2.5 py-2 text-sm outline-none focus:border-ink-900"
                   />
@@ -318,13 +493,35 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
       </section>
 
       {/* ------------------------------ 2. Datos ------------------------------ */}
-      <form ref={formRef} onSubmit={onSubmit} onChange={() => setDirty(true)} className={`${card} mt-6`} aria-labelledby="datos-titulo">
+      <form
+        ref={formRef}
+        onSubmit={onSubmit}
+        onChange={onFormChange}
+        onKeyDown={onFormKeyDown}
+        className={`${card} mt-6`}
+        aria-labelledby="datos-titulo"
+      >
         <header className="flex flex-wrap items-center gap-3 border-b border-ink-100 px-4 py-4 sm:px-6">
           <span className="grid size-8 place-items-center rounded-lg bg-laser-500 font-display text-lg font-bold text-ink-900">2</span>
           <h2 id="datos-titulo" className="text-2xl font-bold">
             Datos de la obra
           </h2>
         </header>
+        {pendingDraft && (
+          <div className="mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-laser-500 bg-laser-500/15 p-4 sm:mx-6" role="status">
+            <RotateCcw className="size-5 shrink-0 text-ink-800" />
+            <p className="min-w-0 flex-1 text-sm text-ink-800">
+              <strong>Hay cambios que no se llegaron a guardar</strong> (
+              {new Date(pendingDraft.savedAt).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Madrid" })}).
+            </p>
+            <button type="button" onClick={() => restoreDraft(pendingDraft)} className="btn-dark !px-4 !py-2 text-sm">
+              Recuperarlos
+            </button>
+            <button type="button" onClick={discardDraft} className="text-sm font-bold text-ink-600 underline hover:text-ink-900">
+              Descartar
+            </button>
+          </div>
+        )}
         <fieldset disabled={saving || deleting} className="grid gap-5 p-4 sm:grid-cols-2 sm:p-6">
           <label className="block sm:col-span-2">
             <span className="text-sm font-bold text-ink-800">Nombre de la obra</span>
@@ -455,9 +652,13 @@ export function ObraEditor({ obra, fotos }: { obra: WebObra; fotos: WebFoto[] })
             if (!confirm(`¿Eliminar «${obra.titulo}»${what}? No se puede deshacer.`)) return;
             startDeleting(async () => {
               setDeleteError(null);
-              setDirty(false);
-              const r = await deleteObra(obra.id);
-              if (r?.error) setDeleteError(r.error);
+              try {
+                const r = await deleteObra(obra.id); // si va bien, vuelve al listado
+                if (r?.error) setDeleteError(r.error);
+              } catch (err) {
+                unstable_rethrow(err);
+                setDeleteError(NETWORK_ERROR);
+              }
             });
           }}
           className="btn border border-red-200 bg-white !py-2.5 text-sm text-red-700 hover:border-red-600 hover:bg-red-600 hover:text-white"

@@ -2,6 +2,7 @@ import type { Project } from "@/content/projects";
 
 export function ReferenceMarquee({ projects }: { projects: Project[] }) {
   const names = projects.filter((p) => p.sector !== "tecnicas").map((p) => p.title);
+  if (names.length === 0) return null;
   const row = [...names, ...names];
   return (
     <section aria-label="Obras de referencia" className="relative overflow-hidden border-y border-ink-200 bg-ink-50 py-6">

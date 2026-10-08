@@ -131,7 +131,9 @@ export default async function ObrasPanelPage({ searchParams }: PageProps<"/panel
               </span>
               <p className="mt-6 font-display text-3xl font-bold text-ink-900">{all.length ? "No hay resultados" : "Aún no hay obras"}</p>
               <p className="mt-2 text-ink-500">
-                {all.length ? "Prueba con otra búsqueda o filtro." : "Escribe el nombre de una obra arriba y pulsa «Nueva obra»."}
+                {all.length
+                  ? "Prueba con otra búsqueda o filtro."
+                  : "La web no enseña ninguna obra hasta que publiques alguna. Escribe el nombre de una obra arriba y pulsa «Nueva obra»."}
               </p>
             </div>
           ) : (

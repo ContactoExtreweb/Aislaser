@@ -22,6 +22,10 @@ export function ProjectsExplorer({ projects }: { projects: Project[] }) {
     ...(Object.keys(sectors) as Sector[]).filter((s) => counts[s]).map((s) => ({ value: s, label: sectors[s].short })),
   ];
 
+  if (projects.length === 0) {
+    return <p className="rounded-[1.75rem] bg-ink-50 p-10 text-center text-lg text-ink-500">Todavía no hay obras publicadas.</p>;
+  }
+
   return (
     <div>
       <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-2 sm:mx-0 sm:flex-wrap sm:px-0" role="tablist" aria-label="Filtrar obras por sector">

@@ -33,29 +33,34 @@ export function Gallery({ images, title }: { images: ProjectImage[]; title: stri
     <>
       {/* Las fotografías de la web anterior son de 720 px: rejilla a 2 columnas para no ampliarlas en exceso */}
       <div className="grid gap-4 sm:grid-cols-2">
-        {images.map((img, i) => (
-          <button
-            key={img.src}
-            type="button"
-            onClick={() => setIndex(i)}
-            className={`group relative aspect-[3/2] overflow-hidden rounded-[1.5rem] bg-ink-100 ${
-              i === 0 && images.length % 2 === 1 ? "sm:col-span-2 sm:aspect-[2/1]" : ""
-            }`}
-            aria-label={`Ampliar fotografía ${i + 1} de ${title}`}
-          >
-            <Image
-              src={img.src}
-              alt={img.alt || `${title}, fotografía ${i + 1}`}
-              fill
-              sizes={i === 0 && images.length % 2 === 1 ? "(min-width: 1280px) 1200px, 100vw" : "(min-width: 1280px) 600px, (min-width: 640px) 50vw, 100vw"}
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-            />
-            <span className="absolute inset-0 bg-ink-950/0 transition-colors group-hover:bg-ink-950/30" />
-            <span className="absolute right-4 bottom-4 grid size-10 place-items-center rounded-full bg-white/90 text-ink-900 opacity-0 transition-opacity group-hover:opacity-100">
-              <Maximize2 className="size-4" />
-            </span>
-          </button>
-        ))}
+        {images.map((img, i) => {
+          // Las fotos verticales (las del móvil) se enseñan enteras, sin recortar, sobre fondo oscuro
+          const portrait = img.height > img.width;
+          const wide = i === 0 && images.length % 2 === 1 && !portrait;
+          return (
+            <button
+              key={img.src}
+              type="button"
+              onClick={() => setIndex(i)}
+              className={`group relative aspect-[3/2] overflow-hidden rounded-[1.5rem] ${portrait ? "bg-ink-900" : "bg-ink-100"} ${
+                wide ? "sm:col-span-2 sm:aspect-[2/1]" : ""
+              }`}
+              aria-label={`Ampliar fotografía ${i + 1} de ${title}`}
+            >
+              <Image
+                src={img.src}
+                alt={img.alt || `${title}, fotografía ${i + 1}`}
+                fill
+                sizes={wide ? "(min-width: 1280px) 1200px, 100vw" : "(min-width: 1280px) 600px, (min-width: 640px) 50vw, 100vw"}
+                className={`${portrait ? "object-contain" : "object-cover"} transition-transform duration-700 group-hover:scale-105`}
+              />
+              <span className="absolute inset-0 bg-ink-950/0 transition-colors group-hover:bg-ink-950/30" />
+              <span className="absolute right-4 bottom-4 grid size-10 place-items-center rounded-full bg-white/90 text-ink-900 opacity-0 transition-opacity group-hover:opacity-100">
+                <Maximize2 className="size-4" />
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {open && (

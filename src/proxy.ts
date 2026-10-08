@@ -29,7 +29,10 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isPublicPanelPath = PUBLIC_PANEL_PATHS.some((p) => pathname.startsWith(p));
-  if (!user && pathname.startsWith("/panel") && !isPublicPanelPath) {
+  // Las Server Actions comprueban la sesión ellas mismas y devuelven un aviso: si aquí se
+  // redirigiera al login, el navegador cambiaría de página y se perdería lo escrito
+  const isServerAction = request.method === "POST" && request.headers.has("next-action");
+  if (!user && pathname.startsWith("/panel") && !isPublicPanelPath && !isServerAction) {
     const url = request.nextUrl.clone();
     url.pathname = "/panel/login";
     url.searchParams.set("next", pathname);

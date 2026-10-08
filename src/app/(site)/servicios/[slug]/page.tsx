@@ -34,7 +34,11 @@ export default async function ServicePage({ params }: PageProps<"/servicios/[slu
   const service = getService(slug);
   if (!service) notFound();
 
-  const related = (await getProjects()).filter((p) => p.services?.includes(service.slug));
+  // Primero las obras nuevas del panel y después las elegidas para este servicio, en su orden
+  const rank = (slug: string) => service.projects.indexOf(slug);
+  const related = (await getProjects())
+    .filter((p) => p.services?.includes(service.slug))
+    .sort((a, b) => rank(a.slug) - rank(b.slug));
   const others = services.filter((s) => s.slug !== service.slug);
 
   return (

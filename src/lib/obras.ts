@@ -46,7 +46,7 @@ function toProject(r: Row): Project {
   };
 }
 
-/** Las obras de la web anterior: se enseñan mientras la galería de la base de datos no exista o esté vacía */
+/** Las obras de la web anterior: sólo se enseñan si la galería de la base de datos no existe (Supabase sin configurar o sin la migración 004) */
 const fallbackProjects: Project[] = staticProjects.map((p) => ({
   ...p,
   services: services.filter((s) => s.projects.includes(p.slug)).map((s) => s.slug),
@@ -54,16 +54,33 @@ const fallbackProjects: Project[] = staticProjects.map((p) => ({
 
 /**
  * null si la galería aún no existe (falta la migración 004 o Supabase no está configurado).
- * Cualquier otro fallo lanza un error a propósito: así la web sigue sirviendo la última
- * versión buena (ISR) y un despliegue con Supabase caído falla en vez de publicar algo a medias.
- * Next sólo guarda en caché las respuestas 200, así que un fallo no se queda pegado.
+ * Un fallo pasajero se reintenta; si persiste, lanza un error a propósito: en una regeneración
+ * por tiempo la web sigue sirviendo la última versión buena (ISR), y un despliegue con Supabase
+ * caído falla en vez de publicar algo a medias. Next sólo guarda en caché las respuestas 200.
+ * (Justo después de guardar en el panel no hay versión anterior que servir: si Supabase fallara
+ * en ese momento, esa visita vería la página de error hasta que vuelva.)
  */
 async function fetchPublished(): Promise<Project[] | null> {
   if (!isSupabaseConfigured) return null;
-  const res = await fetch(`${supabaseUrl}/rest/v1/web_obras?select=${FIELDS}&publicada=eq.true&order=orden.asc,created_at.desc,id.asc`, {
-    headers: { apikey: supabaseKey },
-    next: { revalidate: REVALIDATE_SECONDS, tags: [OBRAS_TAG] },
-  });
+  const url = `${supabaseUrl}/rest/v1/web_obras?select=${FIELDS}&publicada=eq.true&order=orden.asc,created_at.desc,id.asc`;
+  let res: Response | null = null;
+  let failure: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 400 * attempt));
+    try {
+      // Con signal, Next no reutiliza la respuesta fallida del intento anterior (deduplicación del render)
+      res = await fetch(url, {
+        headers: { apikey: supabaseKey },
+        signal: AbortSignal.timeout(8000),
+        next: { revalidate: REVALIDATE_SECONDS, tags: [OBRAS_TAG] },
+      });
+      if (res.status < 500) break; // sólo se reintentan los fallos del servidor
+    } catch (e) {
+      failure = e;
+      res = null;
+    }
+  }
+  if (!res) throw new Error(`Obras: Supabase no responde (${failure instanceof Error ? failure.message : String(failure)})`);
   if (res.status === 404) return null; // PGRST205: la tabla web_obras todavía no existe
   if (!res.ok) throw new Error(`Obras: ${res.status} ${await res.text()}`);
   const rows = (await res.json()) as Row[];
@@ -72,10 +89,7 @@ async function fetchPublished(): Promise<Project[] | null> {
 }
 
 /** Obras publicadas, en el orden del panel */
-export const getProjects = cache(async (): Promise<Project[]> => {
-  const fromDb = await fetchPublished();
-  return fromDb && fromDb.length > 0 ? fromDb : fallbackProjects;
-});
+export const getProjects = cache(async (): Promise<Project[]> => (await fetchPublished()) ?? fallbackProjects);
 
 export async function getProject(slug: string) {
   return (await getProjects()).find((p) => p.slug === slug);
