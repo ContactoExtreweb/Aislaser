@@ -314,5 +314,20 @@ create policy "firmas: admins borran" on storage.objects
   for delete to authenticated
   using (bucket_id = 'firmas' and public.is_admin());
 
--- Comprobación: deben aparecer los dos buckets
-select id, public from storage.buckets where id in ('dossier-images', 'firmas');
+-- =====================================================================
+--  COMPROBACIÓN FINAL (si no ves este resultado, el script no se pegó entero)
+--  Debe mostrar:
+--    tablas  → admin_users, app_settings, contact_messages, dossier_images, dossier_points, dossiers
+--    buckets → dossier-images (público), firmas (privado)
+-- =====================================================================
+select 'tablas' as comprobacion,
+       string_agg(table_name::text, ', ' order by table_name) as encontrado
+  from information_schema.tables
+ where table_schema = 'public'
+   and table_name in ('admin_users', 'dossiers', 'dossier_points', 'dossier_images', 'contact_messages', 'app_settings')
+union all
+select 'buckets',
+       string_agg(id || case when public then ' (público)' else ' (privado)' end, ', ' order by id)
+  from storage.buckets
+ where id in ('dossier-images', 'firmas');
+-- FIN DEL SCRIPT

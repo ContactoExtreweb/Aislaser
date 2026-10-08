@@ -38,7 +38,7 @@ export function PointCard({
         }
       }}
     >
-      <header className="flex items-center gap-3 border-b border-ink-100 px-4 py-3 sm:px-6">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-ink-100 px-4 py-3 sm:flex-nowrap sm:px-6">
         <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-laser-500 font-display text-2xl font-bold text-ink-900">
           {index + 1}
         </span>
@@ -46,12 +46,12 @@ export function PointCard({
           value={point.title}
           onChange={(e) => api.updatePoint(point.id, { title: e.target.value })}
           placeholder={informe ? `Título del apartado ${index + 1} (ej.: Objeto del informe)` : `Título del punto ${index + 1} (opcional)`}
-          className={`min-w-0 flex-1 rounded-xl px-2 py-2 font-display text-xl font-bold text-ink-900 outline-none placeholder:font-sans placeholder:text-base placeholder:font-semibold placeholder:normal-case placeholder:text-ink-400 hover:bg-ink-50 focus:bg-ink-50 sm:text-2xl ${
+          className={`order-last w-full min-w-0 rounded-xl px-2 py-2 font-display sm:order-none sm:w-auto sm:flex-1 text-xl font-bold text-ink-900 outline-none placeholder:font-sans placeholder:text-base placeholder:font-semibold placeholder:normal-case placeholder:text-ink-400 hover:bg-ink-50 focus:bg-ink-50 sm:text-2xl ${
             informe ? "uppercase" : ""
           }`}
           maxLength={160}
         />
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:ml-0">
           <button
             type="button"
             onClick={() => api.movePoint(point.id, -1)}

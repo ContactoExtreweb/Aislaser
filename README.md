@@ -1,6 +1,6 @@
 # Aislaser · Web corporativa y panel de dosieres
 
-Nueva web pública de **Aislaser** (impermeabilización de cubiertas técnicas con poliurea y poliuretano, Campanario · Badajoz) y **panel privado** para crear dosieres de obra y descargarlos en PDF o en imágenes.
+Nueva web pública de **Aislaser** (impermeabilización de cubiertas técnicas con poliurea y poliuretano, Campanario · Badajoz) y **panel privado** para redactar informes técnicos y dosieres de obra y descargarlos en PDF o en imágenes con el membrete de la empresa.
 
 - **Stack:** Next.js 16 (App Router, Turbopack) · React 19 · Tailwind CSS 4 · Supabase (Auth, Postgres, Storage) · TipTap 3
 - **Identidad:** logotipo original vectorizado (`public/brand/`), carbón `#433F3F` + amarillo `#FFCE00`, tipografías Mulish (heredera de la "Muli" de la web anterior) y Barlow Condensed.
@@ -22,12 +22,15 @@ Comandos: `npm run build` · `npm start` · `npm run typecheck`.
 ## 2. Base de datos (Supabase)
 
 1. Crear un proyecto en [supabase.com](https://supabase.com) (región UE: Frankfurt / París).
-2. **SQL Editor → New query** → pegar `supabase/schema.sql` → **Run**. Crea:
+2. **SQL Editor → New query** → pegar `supabase/schema.sql` **entero** → **Run**. Para no cortarlo al copiar, ábrelo en GitHub y usa el botón *Copy raw file*. Al final debe aparecer la tabla de comprobación con 6 tablas y 2 buckets; si no aparece, el script no se pegó completo. Crea:
    - `dossiers`, `dossier_points`, `dossier_images`: los dosieres, sus puntos (1, 2, 3…) y las fotos de cada punto.
    - `contact_messages`: mensajes del formulario de la web.
    - `admin_users` + función `is_admin()`: sólo los usuarios de esta tabla entran al panel.
-   - Bucket de Storage `dossier-images` (lectura pública por URL, escritura sólo administradores).
-   - Seguridad RLS en todas las tablas. El script es idempotente (se puede repetir).
+   - `app_settings`: firmante por defecto, sello y firma.
+   - Bucket de Storage `dossier-images` (fotos; lectura pública por URL, escritura sólo administradores).
+   - Bucket **privado** `firmas` (sello y firma; sólo administradores, con URLs firmadas temporales).
+   - Seguridad RLS en todas las tablas. El script es idempotente (se puede repetir sin perder datos).
+   - Si ya tenías el esquema anterior, basta con ejecutar `supabase/migrations/002_informe_y_firma.sql` (o repetir `schema.sql`).
 3. **Authentication → Sign In / Providers → Email:** desactivar *Allow new users to sign up*.
 4. **Authentication → Users → Add user → Create new user:** email + contraseña del cliente, marcando *Auto Confirm User*.
 5. **SQL Editor:** ejecutar `supabase/add-admin.sql` cambiando el email por el del paso 4.
@@ -77,23 +80,31 @@ supabase/              SQL del esquema y alta de administradores
 public/images/         Fotografías optimizadas (WebP) de la web anterior
 ```
 
-## 5. Cómo funciona el panel de dosieres
+## 5. Cómo funciona el panel
 
-1. **Nuevo dosier** → se crea con el punto 1 listo.
-2. **Portada:** título, subtítulo, cliente, obra, fecha, referencia, foto de portada e introducción opcional.
-3. **Puntos 1, 2, 3…:** cada uno con título, texto con formato (negrita, cursiva, listas, alineación) y sus fotos.
+**Dos formatos de documento** (se elige arriba del todo en cada documento):
+
+- **Informe técnico** (por defecto): calcado del informe de Aislaser. Membrete con el logo y «AISLAMIENTOS Y SERVICIOS», *A/A del técnico*, *Informe realizado por*, *Para*, título centrado y resaltado, apartados numerados en mayúsculas con texto justificado, cierre «Se emite este informe técnico en Campanario a …», sello, firma, *FDO: AISLASER, C.B.* y firmante, Nº de registro y CIF en el margen y el pie con actividades y dirección.
+- **Dosier con portada**: portada con foto grande, cabecera y pie propios; pensado para reportajes fotográficos de obra.
+
+Flujo:
+
+1. **Nuevo informe** → se crea con los apartados *Objeto del informe*, *Pruebas realizadas* y *Conclusiones y propuesta de actuación* (se pueden renombrar, mover o borrar).
+2. **Cabecera:** A/A del técnico, para quién, quién lo realiza y título (o, en el dosier, la portada con foto).
+3. **Apartados 1, 2, 3…:** cada uno con título, texto con formato (negrita, cursiva, listas, alineación) y sus fotos.
 4. **Fotos, lo más fácil posible:** arrastrar y soltar, botón *Elegir fotos*, **pegar con Ctrl+V** (también dentro del texto), o *Hacer foto* desde el móvil. Se reducen y orientan automáticamente antes de subirlas. Pie de foto, reordenar (arrastrando o con flechas) y elegir 1, 2 o 3 fotos por fila.
 5. **Autoguardado** de cada cambio, con indicador "Guardando… / Todos los cambios guardados".
 6. **Vista previa y descarga:** maquetación A4 automática con la imagen de Aislaser (portada, cabecera, pie y número de página) y exportación a:
    - **PDF** (A4, alta resolución),
    - **imágenes PNG** (una por página, en un ZIP),
    - **Imprimir** / guardar como PDF desde el navegador (texto vectorial).
-7. Duplicar un dosier para usarlo como plantilla, marcarlo como terminado, buscar y eliminar.
-8. **Mensajes:** solicitudes del formulario de contacto de la web, con marcar como leído.
+7. **Cierre y firma:** lugar, fecha, firmante y casilla «Poner sello y firma».
+8. **Ajustes** (`/panel/ajustes`): subir el sello y la firma una sola vez (se guardan en el bucket privado `firmas`), firmante y empresa por defecto, cambiar contraseña.
+9. Duplicar un documento para usarlo como plantilla, marcarlo como terminado, buscar y eliminar.
+10. **Mensajes:** solicitudes del formulario de contacto de la web, con marcar como leído.
 
 ## 6. Pendiente de revisar con el cliente
 
-- CIF y datos fiscales en `/aviso-legal`.
 - Confirmar los años de experiencia (la web anterior decía "más de 15 años" en 2019) en `src/content/company.ts`.
 - Revisar la clasificación por sector y ubicación de cada obra en `src/content/projects.ts`.
 - Si se dispone de fotos de mayor resolución, sustituirlas en `public/images/` (las originales son de 720 px).
