@@ -22,16 +22,17 @@ Comandos: `npm run build` · `npm start` · `npm run typecheck`.
 ## 2. Base de datos (Supabase)
 
 1. Crear un proyecto en [supabase.com](https://supabase.com) (región UE: Frankfurt / París).
-2. **SQL Editor → New query** → pegar `supabase/schema.sql` **entero** → **Run**. Para no cortarlo al copiar, ábrelo en GitHub y usa el botón *Copy raw file*. Al final debe aparecer la tabla de comprobación con 6 tablas y 2 buckets; si no aparece, el script no se pegó completo. Crea:
+2. **SQL Editor → New query** → pegar `supabase/schema.sql` **entero** → **Run**. Para no cortarlo al copiar, ábrelo en GitHub y usa el botón *Copy raw file*. Al final debe aparecer la tabla de comprobación con 8 tablas y 3 buckets; si no aparece, el script no se pegó completo. Crea:
    - `dossiers`, `dossier_points`, `dossier_images`: los dosieres, sus puntos (1, 2, 3…) y las fotos de cada punto.
    - `contact_messages`: mensajes del formulario de la web.
    - `admin_users` + función `is_admin()`: sólo los usuarios de esta tabla entran al panel.
    - `app_settings`: firmante por defecto, sello y firma.
    - Bucket de Storage `dossier-images` (fotos; lectura pública por URL, escritura sólo administradores).
    - Bucket **privado** `firmas` (sello y firma; sólo administradores, con URLs firmadas temporales).
+   - `web_obras`, `web_fotos` y bucket público `galeria`: las obras que se enseñan en la web, gestionadas desde el panel.
    - Seguridad RLS en todas las tablas. El script es idempotente (se puede repetir sin perder datos).
    - Si una ejecución anterior se quedó a medias, ejecuta `supabase/pendiente.sql` (es el script completo e idempotente: crea o repara todo).
-   - Migraciones sueltas: `002_informe_y_firma.sql` (formato informe, sello y firma) y `003_proteger_mensajes.sql` (protección del formulario contra abusos).
+   - Migraciones sueltas: `002_informe_y_firma.sql` (formato informe, sello y firma), `003_proteger_mensajes.sql` (protección del formulario contra abusos) y `004_galeria_web.sql` (obras de la web gestionadas desde el panel).
 3. **Authentication → Sign In / Providers → Email:** desactivar *Allow new users to sign up*.
 4. **Authentication → Users → Add user → Create new user:** email + contraseña del cliente, marcando *Auto Confirm User*.
 5. **SQL Editor:** ejecutar `supabase/add-admin.sql` cambiando el email por el del paso 4.
