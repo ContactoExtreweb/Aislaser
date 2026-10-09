@@ -2,11 +2,21 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, LoaderCircle, Plus } from "lucide-react";
+import { unstable_rethrow } from "next/navigation";
 import { createObra, moveObra, type ObraResult } from "@/app/panel/obras-actions";
+import { actionFailed } from "./action-errors";
 
 /** «Nueva obra»: sólo pide el nombre; lo demás se rellena en su ficha */
 export function NewObraForm() {
-  const [state, action, pending] = useActionState<ObraResult, FormData>(createObra, {});
+  // Si no llega al servidor, se avisa aquí en vez de cambiar toda la página por un error
+  const [state, action, pending] = useActionState<ObraResult, FormData>(async (prev, formData) => {
+    try {
+      return await createObra(prev, formData);
+    } catch (e) {
+      unstable_rethrow(e); // la redirección a la ficha nueva
+      return { error: actionFailed(e) };
+    }
+  }, {});
   return (
     <form action={action} className="w-full sm:w-auto">
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -37,8 +47,13 @@ export function MoveObraButtons({ id, title, first, last }: { id: string; title:
   const move = (direction: -1 | 1) =>
     start(async () => {
       setError(null);
-      const result = await moveObra(id, direction);
-      if (result.error) setError(result.error);
+      try {
+        const result = await moveObra(id, direction);
+        if (result.error) setError(result.error);
+      } catch (e) {
+        unstable_rethrow(e);
+        setError(actionFailed(e));
+      }
     });
   return (
     <div className="flex items-center gap-1">

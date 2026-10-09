@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { unstable_isUnrecognizedActionError, unstable_rethrow } from "next/navigation";
+import { actionFailed } from "./action-errors";
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import {
   AlertTriangle,
@@ -45,12 +46,6 @@ const card = "rounded-[1.75rem] border border-ink-200 bg-white shadow-[0_20px_50
 /** Las fotos de la web se guardan a 2000 px como mucho: nítidas en pantalla grande y ligeras */
 const MAX_SIDE = 2000;
 
-/** Si una Server Action no llega (sin conexión, panel recién actualizado…) */
-const actionFailed = (e: unknown) =>
-  unstable_isUnrecognizedActionError(e)
-    ? "El panel se ha actualizado mientras trabajabas: recarga la página (lo escrito se recupera con «Recuperarlos»)."
-    : "No se ha podido conectar. Comprueba la conexión y vuelve a intentarlo; lo escrito sigue aquí.";
-
 const errorText = (e: unknown) => {
   const msg = e instanceof Error ? e.message : String(e);
   if (/failed to fetch|network|load failed|server action/i.test(msg)) return "no se ha podido conectar; inténtalo otra vez";
@@ -72,8 +67,10 @@ function randomId() {
 
 type PhotoChange = { type: "order"; ids: string[] } | { type: "remove"; id: string };
 
-/* Copia local de lo escrito en el formulario, por si se cierra la pestaña o caduca la sesión */
-type Draft = {
+/* Copia local de lo escrito en el formulario, por si se cierra la pestaña o caduca la sesión.
+   Guarda también los valores de los que se partió: al recuperar sólo se aplican los campos que
+   se cambiaron, para no deshacer lo guardado después desde otro dispositivo. */
+type FormValues = {
   titulo: string;
   sector: string;
   ubicacion: string;
@@ -82,30 +79,44 @@ type Draft = {
   descripcion: string;
   destacada: boolean;
   servicios: string[];
-  savedAt: number;
 };
+type Draft = FormValues & { savedAt: number; base?: FormValues };
 const DRAFT_FIELDS = ["titulo", "ubicacion", "anio", "resumen", "descripcion"] as const;
+const VALUE_KEYS = [...DRAFT_FIELDS, "sector", "destacada", "servicios"] as const;
 const draftKey = (id: string) => `aislaser:obra-sin-guardar:${id}`;
 
-function readForm(form: HTMLFormElement): Draft {
+function readForm(form: HTMLFormElement): FormValues {
   const data = new FormData(form);
   return {
-    ...(Object.fromEntries(DRAFT_FIELDS.map((k) => [k, String(data.get(k) ?? "")])) as Pick<Draft, (typeof DRAFT_FIELDS)[number]>),
+    ...(Object.fromEntries(DRAFT_FIELDS.map((k) => [k, String(data.get(k) ?? "")])) as Pick<FormValues, (typeof DRAFT_FIELDS)[number]>),
     sector: String(data.get("sector") ?? ""),
     destacada: data.get("destacada") === "on",
     servicios: data.getAll("servicios").map(String),
-    savedAt: Date.now(),
   };
 }
 
-function sameAsSaved(d: Draft, o: WebObra) {
-  return (
-    DRAFT_FIELDS.every((k) => d[k].trim() === (o[k] ?? "").trim()) &&
-    d.sector === (o.sector ?? "") &&
-    d.destacada === o.destacada &&
-    [...d.servicios].sort().join() === [...o.servicios].sort().join()
-  );
-}
+const valuesOf = (o: WebObra): FormValues => ({
+  titulo: o.titulo,
+  ubicacion: o.ubicacion ?? "",
+  anio: o.anio ?? "",
+  resumen: o.resumen ?? "",
+  descripcion: o.descripcion ?? "",
+  sector: o.sector ?? "",
+  destacada: o.destacada,
+  servicios: o.servicios,
+});
+
+const sameValue = (a: unknown, b: unknown) =>
+  Array.isArray(a) && Array.isArray(b) ? [...a].sort().join() === [...b].sort().join() : typeof a === "string" ? a.trim() === String(b ?? "").trim() : a === b;
+
+/** Campos que se cambiaron en la copia respecto a los valores de partida */
+const changedKeys = (d: Draft) => VALUE_KEYS.filter((k) => !sameValue(d[k], (d.base ?? ({} as Partial<FormValues>))[k]));
+
+/** ¿Aporta algo la copia frente a lo que hay guardado ahora? */
+const draftHasNews = (d: Draft, o: WebObra) => {
+  const saved = valuesOf(o);
+  return changedKeys(d).some((k) => !sameValue(d[k], saved[k]));
+};
 
 export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: WebFoto[] }) {
   const [upload, setUpload] = useState<{ done: number; total: number } | null>(null);
@@ -142,8 +153,15 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
         // circular pronto (la web la sirve a través de su propio optimizador de imágenes)
         const { error } = await bucket.upload(path, blob, { contentType: "image/jpeg", cacheControl: "86400", upsert: false });
         if (error) throw new Error(error.message);
-        // Registrar la foto (refresca la ficha); si no se puede, no dejar el archivo suelto
-        const result = await addObraPhoto(obra.id, path, width, height).catch((e: unknown) => ({ error: actionFailed(e) }));
+        // Registrar la foto (refresca la ficha). Si el servidor la rechaza, se borra el archivo; si
+        // falla la conexión no: puede que el servidor sí la registrara y se quedaría una foto rota
+        let result: ObraResult;
+        try {
+          result = await addObraPhoto(obra.id, path, width, height);
+        } catch (e) {
+          if (unstable_isUnrecognizedActionError(e)) await bucket.remove([path]).catch(() => {});
+          throw new Error(actionFailed(e));
+        }
         if (result.error) {
           await bucket.remove([path]).catch(() => {});
           throw new Error(result.error);
@@ -167,6 +185,11 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
   uploadRef.current = uploadFiles;
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
+      // En un campo de texto, si lo copiado trae texto (Excel o Word copian también una imagen del
+      // texto), se pega el texto. Las capturas de pantalla no traen texto y se siguen subiendo
+      const t = e.target as HTMLElement | null;
+      const inField = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || Boolean(t?.isContentEditable);
+      if (inField && e.clipboardData?.types.includes("text/plain")) return;
       const files = imageFilesFrom(e.clipboardData?.files);
       if (files.length) {
         e.preventDefault();
@@ -202,7 +225,7 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
 
   // Los textos de las fotos se guardan al salir del campo, sin bloquear los botones de las fotos
   // (si no, el clic en «Portada» justo después de escribir se perdería)
-  const altPendingRef = useRef(new Set<string>());
+  const altPendingRef = useRef(new Map<string, string>());
   const saveAlt = async (id: string, alt: string) => {
     try {
       const result = await updateObraPhotoAlt(id, alt);
@@ -213,10 +236,33 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
     }
   };
 
-  const moveTo = (from: number, to: number) => {
+  // Al salir de la ficha (también con «Atrás»): se para la cola de fotos que faltaban, como dice
+  // el aviso, y se guardan los textos de fotos que se estaban escribiendo
+  useEffect(
+    () => () => {
+      queueRef.current.length = 0;
+      altPendingRef.current.forEach((alt, id) => void updateObraPhotoAlt(id, alt).catch(() => {}));
+    },
+    [],
+  );
+
+  // Con teclado, al mover una foto el botón cambia de sitio en la página y el navegador pierde el
+  // foco: se devuelve al mismo botón de esa foto (o al otro botón si ha llegado a un extremo)
+  const focusAfterMove = useRef<{ id: string; label: string } | null>(null);
+  useEffect(() => {
+    const target = focusAfterMove.current;
+    if (!target) return;
+    focusAfterMove.current = null;
+    const li = document.querySelector(`[data-foto="${target.id}"]`);
+    const buttons = [...(li?.querySelectorAll<HTMLButtonElement>("button") ?? [])].filter((b) => !b.disabled);
+    (buttons.find((b) => b.getAttribute("aria-label") === target.label) ?? buttons[0])?.focus();
+  }, [fotos]);
+
+  const moveTo = (from: number, to: number, label?: string) => {
     const ids = fotos.map((f) => f.id);
     const [moved] = ids.splice(from, 1);
     ids.splice(to, 0, moved);
+    if (label && document.activeElement?.closest(`[data-foto="${moved}"]`)) focusAfterMove.current = { id: moved, label };
     runPhoto(() => reorderObraPhotos(obra.id, ids), { type: "order", ids });
   };
 
@@ -291,7 +337,7 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
     try {
       const raw = localStorage.getItem(draftKey(obra.id));
       const draft = raw ? (JSON.parse(raw) as Draft) : null;
-      if (draft && !sameAsSaved(draft, obra)) setPendingDraft(draft);
+      if (draft && draftHasNews(draft, obra)) setPendingDraft(draft);
       else if (raw) localStorage.removeItem(draftKey(obra.id));
     } catch {
       // Sin almacenamiento local (modo privado…): no pasa nada
@@ -303,7 +349,10 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
     setDirty(true);
     if (!formRef.current) return;
     try {
-      localStorage.setItem(draftKey(obra.id), JSON.stringify(readForm(formRef.current)));
+      // La base es lo guardado al empezar a escribir (si ya había copia, se conserva su base)
+      const previous = JSON.parse(localStorage.getItem(draftKey(obra.id)) ?? "null") as Draft | null;
+      const draft: Draft = { ...readForm(formRef.current), savedAt: Date.now(), base: previous?.base ?? valuesOf(obra) };
+      localStorage.setItem(draftKey(obra.id), JSON.stringify(draft));
     } catch {
       // Sin almacenamiento local: sólo queda el aviso al salir
     }
@@ -312,16 +361,21 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
   function restoreDraft(d: Draft) {
     const form = formRef.current;
     if (!form) return;
+    // Sólo lo que se cambió en esa copia; el resto queda como está guardado ahora
+    const changed = new Set(changedKeys(d));
     for (const k of DRAFT_FIELDS) {
       const el = form.elements.namedItem(k);
-      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.value = d[k];
+      if (changed.has(k) && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) el.value = d[k];
     }
-    form.querySelectorAll<HTMLInputElement>('input[name="servicios"]').forEach((el) => (el.checked = d.servicios.includes(el.value)));
+    if (changed.has("servicios")) {
+      form.querySelectorAll<HTMLInputElement>('input[name="servicios"]').forEach((el) => (el.checked = d.servicios.includes(el.value)));
+    }
     const destacada = form.elements.namedItem("destacada");
-    if (destacada instanceof HTMLInputElement) destacada.checked = d.destacada;
-    setSector(d.sector);
+    if (changed.has("destacada") && destacada instanceof HTMLInputElement) destacada.checked = d.destacada;
+    if (changed.has("sector")) setSector(d.sector);
     setPendingDraft(null);
     setDirty(true);
+    // La copia sigue guardada hasta que se guarde de verdad
   }
 
   function discardDraft() {
@@ -406,6 +460,11 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
           <p className="text-sm text-ink-500">La primera es la portada. {fotos.length === 1 ? "1 foto" : `${fotos.length} fotos`}</p>
         </header>
         <div className="space-y-5 p-4 sm:p-6">
+          {obra.publicada && (
+            <p className="rounded-2xl bg-laser-500/15 px-4 py-3 text-sm text-ink-800">
+              Esta obra está en la web: las fotos que subas, muevas o borres se ven en la web al momento, sin pulsar «Guardar».
+            </p>
+          )}
           {upload ? (
             <div className="flex min-h-[180px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-laser-500 bg-laser-500/10 p-6 text-center" role="status">
               <LoaderCircle className="size-8 animate-spin text-ink-700" />
@@ -437,7 +496,7 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
           {fotos.length > 0 && (
             <ul className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${photoBusy ? "opacity-70" : ""}`}>
               {fotos.map((f, i) => (
-                <li key={f.id} className={`flex flex-col gap-2 rounded-2xl border p-2 ${i === 0 ? "border-laser-500 ring-4 ring-laser-500/20" : "border-ink-200"}`}>
+                <li key={f.id} data-foto={f.id} className={`flex flex-col gap-2 rounded-2xl border p-2 ${i === 0 ? "border-laser-500 ring-4 ring-laser-500/20" : "border-ink-200"}`}>
                   <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-ink-100">
                     <Image
                       src={galleryImageUrl(f.storage_path)}
@@ -453,10 +512,10 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-0.5">
-                    <IconButton label="Mover a la izquierda" disabled={photosBusy || i === 0} onClick={() => moveTo(i, i - 1)}>
+                    <IconButton label="Mover a la izquierda" busy={photosBusy} disabled={i === 0} onClick={() => moveTo(i, i - 1, "Mover a la izquierda")}>
                       <ChevronLeft className="size-5" />
                     </IconButton>
-                    <IconButton label="Mover a la derecha" disabled={photosBusy || i === fotos.length - 1} onClick={() => moveTo(i, i + 1)}>
+                    <IconButton label="Mover a la derecha" busy={photosBusy} disabled={i === fotos.length - 1} onClick={() => moveTo(i, i + 1, "Mover a la derecha")}>
                       <ChevronRight className="size-5" />
                     </IconButton>
                     {i > 0 && (
@@ -464,9 +523,9 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
                         type="button"
                         aria-label="Poner de portada"
                         title="Poner de portada"
-                        disabled={photosBusy}
-                        onClick={() => moveTo(i, 0)}
-                        className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-ink-600 hover:bg-laser-500/20 hover:text-ink-900 disabled:opacity-40"
+                        aria-disabled={photosBusy}
+                        onClick={() => !photosBusy && moveTo(i, 0, "Mover a la derecha")}
+                        className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-ink-600 hover:bg-laser-500/20 hover:text-ink-900 aria-disabled:opacity-40"
                       >
                         <Star className="size-3.5" /> Portada
                       </button>
@@ -475,8 +534,12 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
                       label="Borrar foto"
                       danger
                       className="ml-auto"
-                      disabled={photosBusy}
+                      busy={photosBusy}
                       onClick={() => {
+                        if (obra.publicada && fotos.length === 1) {
+                          setPhotoErrors(["Es la única foto de una obra publicada. Sube otra antes o quita la obra de la web."]);
+                          return;
+                        }
                         if (confirm(`¿Borrar la foto ${i + 1}? No se puede deshacer.`)) runPhoto(() => deleteObraPhoto(f.id), { type: "remove", id: f.id });
                       }}
                     >
@@ -489,7 +552,7 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
                     defaultValue={f.alt}
                     maxLength={OBRA_LIMITS.alt}
                     onChange={(e) => {
-                      if (e.target.value.trim() !== f.alt) altPendingRef.current.add(f.id);
+                      if (e.target.value.trim() !== f.alt) altPendingRef.current.set(f.id, e.target.value.trim());
                       else altPendingRef.current.delete(f.id);
                     }}
                     onBlur={(e) => {
@@ -651,7 +714,7 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
                 </button>
               </>
             )}
-            {dirty && !saving && <span className="text-sm font-semibold text-laser-700">Tienes cambios sin guardar</span>}
+            {dirty && !saving && <span className="rounded-full bg-laser-500/25 px-3 py-1 text-sm font-semibold text-ink-900">Tienes cambios sin guardar</span>}
           </div>
         </div>
       </form>
@@ -693,9 +756,11 @@ export function ObraEditor({ obra, fotos: savedFotos }: { obra: WebObra; fotos: 
   );
 }
 
+/** busy: ocupado un momento (sin `disabled`, para que el foco del teclado no salte al principio) */
 function IconButton({
   label,
   disabled,
+  busy,
   onClick,
   danger,
   className = "",
@@ -703,6 +768,7 @@ function IconButton({
 }: {
   label: string;
   disabled?: boolean;
+  busy?: boolean;
   onClick: () => void;
   danger?: boolean;
   className?: string;
@@ -714,8 +780,9 @@ function IconButton({
       title={label}
       aria-label={label}
       disabled={disabled}
-      onClick={onClick}
-      className={`grid size-9 place-items-center rounded-lg transition-colors disabled:opacity-30 ${
+      aria-disabled={busy || undefined}
+      onClick={() => !busy && onClick()}
+      className={`grid size-9 place-items-center rounded-lg transition-colors disabled:opacity-30 aria-disabled:opacity-50 ${
         danger ? "text-ink-400 hover:bg-red-50 hover:text-red-600" : "text-ink-600 hover:bg-ink-100 hover:text-ink-900"
       } ${className}`}
     >
