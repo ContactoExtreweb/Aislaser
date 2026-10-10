@@ -7,6 +7,7 @@ import { Intro } from "@/components/site/home/Intro";
 import { PolyureaSection } from "@/components/site/home/PolyureaSection";
 import { Process } from "@/components/site/home/Process";
 import { ReferenceMarquee } from "@/components/site/home/ReferenceMarquee";
+import { RoofSystemSection } from "@/components/site/home/RoofSystemSection";
 import { ServicesBento } from "@/components/site/home/ServicesBento";
 import { VideoSection } from "@/components/site/home/VideoSection";
 import { getProjects, pickFeatured } from "@/lib/obras";
@@ -24,6 +25,7 @@ export default async function HomePage() {
       <Intro />
       <ServicesBento />
       <PolyureaSection />
+      <RoofSystemSection />
       <Process />
       <Audience />
       <FeaturedProjects projects={projects} />

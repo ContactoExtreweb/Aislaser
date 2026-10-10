@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useRef, type ElementType, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 type Props = {
   children: ReactNode;
-  as?: ElementType;
+  /** Sólo etiquetas HTML (con React Three Fiber instalado, ElementType incluye también las de Three.js) */
+  as?: "div" | "li" | "ul" | "section" | "article" | "span";
   className?: string;
   delay?: number;
 };
 
 /** Hace aparecer el contenido suavemente cuando entra en pantalla */
-export function Reveal({ children, as: Tag = "div", className, delay = 0 }: Props) {
-  const ref = useRef<HTMLElement>(null);
+export function Reveal({ children, as = "div", className, delay = 0 }: Props) {
+  // Todas son elementos HTML: para TypeScript basta con tratarlas como un <div>
+  const Tag = as as "div";
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = ref.current;

@@ -162,6 +162,12 @@
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* Barra de progreso de cada paso de la animación de la cubierta */
+@keyframes roof-step {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: none; }
