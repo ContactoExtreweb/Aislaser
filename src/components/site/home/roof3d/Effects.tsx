@@ -47,7 +47,7 @@ class Splashes {
     this.life[i] = this.duration;
     this.pos.set([x, y, z], i * 3);
   }
-  step(dt: number, size = 0.16) {
+  step(dt: number, size = 0.12) {
     for (let i = 0; i < this.n; i++) {
       if (this.life[i] <= 0) continue;
       this.life[i] -= dt;
@@ -55,7 +55,7 @@ class Splashes {
       const s = 0.02 + (1 - k) * size;
       this.m.makeScale(s, 1, s).setPosition(this.pos[i * 3], this.pos[i * 3 + 1], this.pos[i * 3 + 2]);
       this.mesh.setMatrixAt(i, this.m);
-      this.mesh.setColorAt(i, this.c.setScalar(k * 0.85));
+      this.mesh.setColorAt(i, this.c.setScalar(k * k * 0.7));
       if (this.life[i] <= 0) this.mesh.setMatrixAt(i, this.m.makeScale(0, 0, 0));
     }
     this.mesh.instanceMatrix.needsUpdate = true;
@@ -100,8 +100,8 @@ function Rain() {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const wind = 0.9;
 
-  useFrame((_, rawDt) => {
-    const dt = Math.min(rawDt, 0.05);
+  useFrame(() => {
+    const dt = Math.min(clock.current.dt, 0.05);
     const amount = rainAmount(clock.current.t);
     res.mesh.visible = amount > 0.01;
     res.splashes.step(dt);
@@ -181,10 +181,10 @@ function Leaks() {
   const bucketWater = useRef<THREE.Mesh>(null);
   const lastHit = useRef<number[]>(LEAKS.map(() => -1));
 
-  useFrame((_, dt) => {
+  useFrame(() => {
     const t = clock.current.t;
     const leak = leakAmount(t);
-    res.splashes.step(Math.min(dt, 0.05), 0.12);
+    res.splashes.step(Math.min(clock.current.dt, 0.05), 0.12);
     LEAKS.forEach((l, i) => {
       const d = drops.current[i];
       // Cada gota tarda ~0,7 s en caer los 2,4 m del techo al suelo (caída libre)

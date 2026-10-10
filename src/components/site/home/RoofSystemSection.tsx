@@ -34,8 +34,10 @@ function webglAvailable() {
  */
 export function RoofSystemSection() {
   const card = useRef<HTMLDivElement>(null);
+  const steps = useRef<HTMLOListElement>(null);
   const playingRef = useRef(true);
   const seekRef = useRef<number | null>(null);
+  const [seekTick, setSeekTick] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [stage, setStage] = useState(0);
   const [near, setNear] = useState(false);
@@ -55,7 +57,7 @@ export function RoofSystemSection() {
     if (process.env.NODE_ENV !== "production") {
       // Sólo en desarrollo: para revisar cualquier instante desde la consola o las pruebas
       (window as unknown as { __roof?: unknown }).__roof = {
-        seek: (t: number) => (seekRef.current = t),
+        seek: (t: number) => ((seekRef.current = t), setSeekTick((n) => n + 1)),
         play: () => ((playingRef.current = true), setPlaying(true)),
         pause: () => ((playingRef.current = false), setPlaying(false)),
       };
@@ -83,13 +85,24 @@ export function RoofSystemSection() {
     };
   }, []);
 
+  // En móvil la lista de pasos se desplaza en horizontal: se centra el paso actual (sin mover la página)
+  useEffect(() => {
+    const list = steps.current;
+    const item = list?.children[stage] as HTMLElement | undefined;
+    if (!list || !item || list.scrollWidth <= list.clientWidth) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list.scrollTo({ left: item.offsetLeft - (list.clientWidth - item.offsetWidth) / 2, behavior: reduce ? "auto" : "smooth" });
+  }, [stage]);
+
   const toggle = () => {
     playingRef.current = !playingRef.current;
     setPlaying(playingRef.current);
   };
 
   const goTo = (i: number) => {
-    seekRef.current = STAGES[i].start + 0.01;
+    // Reproduciendo, el paso se ve desde su inicio; en pausa, su instante más representativo
+    seekRef.current = playingRef.current ? STAGES[i].start + 0.01 : STAGES[i].poster;
+    setSeekTick((n) => n + 1);
     setStage(i);
   };
 
@@ -133,7 +146,15 @@ export function RoofSystemSection() {
 
           <div ref={card} className="relative aspect-[4/5] w-full sm:aspect-[16/11] lg:aspect-[16/9]">
             {ready === "ok" && near ? (
-              <RoofScene playingRef={playingRef} seekRef={seekRef} onStage={onStage} active={visible} small={small} />
+              <RoofScene
+                playingRef={playingRef}
+                playing={playing}
+                seekRef={seekRef}
+                seekTick={seekTick}
+                onStage={onStage}
+                active={visible}
+                small={small}
+              />
             ) : (
               <div className="absolute inset-0 grid place-items-center text-sm font-bold text-ink-500">
                 {ready === "no-webgl" ? "Tu navegador no puede mostrar la animación 3D." : "Cargando la animación 3D…"}
@@ -175,7 +196,7 @@ export function RoofSystemSection() {
               <p className="mt-1 font-display text-2xl leading-tight font-bold text-ink-900">{current.title}</p>
               <p className="mt-2 text-sm leading-relaxed text-ink-600">{current.text}</p>
             </div>
-            <ol className="no-scrollbar flex overflow-x-auto sm:grid sm:grid-cols-7">
+            <ol ref={steps} className="no-scrollbar relative flex overflow-x-auto sm:grid sm:grid-cols-7">
               {STAGES.map((s, i) => {
                 const on = i === stage;
                 return (

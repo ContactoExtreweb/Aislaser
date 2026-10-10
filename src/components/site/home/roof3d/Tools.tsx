@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { passPosition, softDotTexture } from "./textures";
-import { PASSES, SKYLIGHT, useClock } from "./shared";
+import { PASSES, SKYLIGHT, easeDt, useClock } from "./shared";
 
 type PassKey = keyof typeof PASSES;
 
@@ -185,6 +185,11 @@ function SprayGun() {
   const updateHose = (mesh: THREE.Mesh | null, side: number, dirX: number) => {
     if (!mesh) return;
     const curve = new THREE.CatmullRomCurve3(hosePoints(tmp.r, dirX, side, tmp.pts), false, "centripetal");
+    // Con la pistola bajando desde arriba la curva se pasa de largo y atravesaría la cubierta: se apoya en ella
+    let dips = false;
+    const pts = curve.getPoints(48);
+    for (const p of pts) if (p.z > -2.45 && p.y < 0.035) (p.y = 0.035), (dips = true);
+    if (dips) curve.points = pts;
     mesh.geometry.dispose();
     mesh.geometry = new THREE.TubeGeometry(curve, 72, 0.022, 7, false);
   };
@@ -202,7 +207,7 @@ function SprayGun() {
     if (a) {
       // Apunta hacia abajo, algo inclinada hacia donde avanza; el abanico cae justo en la línea de trabajo
       const targetYaw = a.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-      yaw.current = THREE.MathUtils.damp(yaw.current, targetYaw, 10, dt);
+      yaw.current = THREE.MathUtils.damp(yaw.current, targetYaw, 10, easeDt(clock.current, dt));
       g.rotation.y = yaw.current;
       const height = 0.47 + TIP * Math.sin(PITCH);
       const lead = TIP * Math.cos(PITCH) + 0.47 / Math.tan(PITCH);
@@ -220,7 +225,7 @@ function SprayGun() {
         tip.current.getWorldPosition(tmp.o);
         tip.current.getWorldQuaternion(tmp.q);
         tmp.d.set(0, 0, 1).applyQuaternion(tmp.q);
-        const count = Math.round((clock.current.small ? 260 : 520) * dt * 2.2);
+        const count = Math.round((clock.current.small ? 260 : 520) * clock.current.dt * 2.2);
         for (let i = 0; i < count; i++) {
           tmp.v
             .copy(tmp.d)
@@ -231,7 +236,7 @@ function SprayGun() {
         }
       }
     }
-    res.spray.step(dt, 1.5, 0.02, 0.6);
+    res.spray.step(clock.current.dt, 1.5, 0.02, 0.6);
   });
 
   return (
@@ -320,7 +325,7 @@ function ShotBlaster() {
     if (g.current) {
       g.current.visible = Boolean(a);
       if (a) {
-        yaw.current = THREE.MathUtils.damp(yaw.current, a.dir > 0 ? 0 : Math.PI, 9, dt);
+        yaw.current = THREE.MathUtils.damp(yaw.current, a.dir > 0 ? 0 : Math.PI, 9, easeDt(clock.current, dt));
         g.current.rotation.y = yaw.current;
         // Rodea el lucernario (lo de alrededor se repasa a mano): se aparta de su fila al llegar
         const halfX = SKYLIGHT.w / 2 + 0.65;
@@ -334,16 +339,16 @@ function ShotBlaster() {
         g.current.position.set(a.x, a.lift * 2.5, z);
         if (a.working) {
           const back = Math.cos(yaw.current) > 0 ? -1 : 1;
-          const n = Math.round((clock.current.small ? 40 : 80) * dt * 2);
+          const n = Math.round((clock.current.small ? 40 : 80) * clock.current.dt * 2);
           for (let i = 0; i < n; i++) {
-            tmp.o.set(a.x + back * 0.5, 0.08, a.z + (Math.random() - 0.5) * 0.9);
+            tmp.o.set(a.x + back * 0.5, 0.08, z + (Math.random() - 0.5) * 0.9);
             tmp.v.set(back * (0.2 + Math.random() * 0.5), 0.25 + Math.random() * 0.45, (Math.random() - 0.5) * 0.4);
             res.dust.emit(tmp.o, tmp.v, 1.1);
           }
         }
       }
     }
-    res.dust.step(dt, -0.05, -1, 0.9);
+    res.dust.step(clock.current.dt, -0.05, -1, 0.9);
   });
 
   return (

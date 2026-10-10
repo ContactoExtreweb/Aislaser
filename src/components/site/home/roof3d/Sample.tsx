@@ -97,7 +97,10 @@ export function Sample() {
     g.updateMatrixWorld();
     if (labels) {
       SAMPLE_LAYERS.forEach((_, i) => place(labels.current.layers[i], pieces.current[i], [SIZE / 2 + 0.04, 0, -SIZE / 2 + 0.1], show));
-      place(labels.current.note, pieces.current[0], [-SIZE / 2, -0.32, SIZE / 2], show * 0.9);
+      // En móvil el aviso va fijo abajo a la izquierda (proyectado tapaba las etiquetas)
+      if (clock.current.small) {
+        if (labels.current.note) labels.current.note.style.opacity = String(show * 0.9);
+      } else place(labels.current.note, pieces.current[0], [-SIZE / 2, -0.32, SIZE / 2], show * 0.9);
     }
   });
 

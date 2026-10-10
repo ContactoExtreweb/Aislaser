@@ -1,10 +1,20 @@
 import { createContext, useContext } from "react";
 import * as THREE from "three";
 
-/** Reloj de la animación (segundos dentro del bucle). Lo actualiza la escena y lo leen todas las piezas */
-export type Clock = { t: number; small: boolean };
+/**
+ * Reloj de la animación (segundos dentro del bucle). Lo actualiza la escena y lo leen todas las piezas.
+ * `dt` es lo que ha avanzado en este fotograma: 0 en pausa o al saltar, para que la lluvia y las
+ * partículas también se queden quietas.
+ */
+export type Clock = { t: number; dt: number; small: boolean; playing: boolean; settle: number };
 export const ClockContext = createContext<{ current: Clock } | null>(null);
 export const useClock = () => useContext(ClockContext)!;
+
+/**
+ * Paso para los movimientos suavizados (cámara, giros de las máquinas): en pausa se congelan al
+ * momento, salvo unos segundos después de un salto para que la cámara llegue a su sitio.
+ */
+export const easeDt = (c: Clock, raw: number) => (c.playing || c.settle > 0 ? Math.min(raw, 0.1) : 0);
 
 /** Etiquetas HTML de la muestra «capa a capa» (encima del canvas); la escena las coloca cada fotograma */
 export type SampleLabels = { layers: (HTMLDivElement | null)[]; note: HTMLDivElement | null };

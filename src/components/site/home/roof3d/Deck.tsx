@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { phase, smooth } from "./timeline";
 import { Coverage, DECK, deckTexture, makeCracks, peelTexture, rng } from "./textures";
-import { DRAIN, LAYER_Y, PASSES, SKYLIGHT, UPTURNS, belowY, leakAmount, rainAmount, useClock } from "./shared";
+import { DRAIN, LAYER_Y, PASSES, SKYLIGHT, UPTURNS, belowY, easeDt, leakAmount, rainAmount, useClock } from "./shared";
 
 const WHITE = new THREE.Color("#ffffff");
 const WET = new THREE.Color("#77736d");
@@ -187,7 +187,7 @@ export function Deck() {
 
     // La poliurea recién proyectada brilla y en segundos queda satinada
     const fresh = t >= PASSES.polyurea.start && t < PASSES.polyurea.end + 1.2 ? 1 : 0;
-    mats.polyurea.roughness = THREE.MathUtils.damp(mats.polyurea.roughness, fresh ? 0.26 : 0.4, 3, dt);
+    mats.polyurea.roughness = THREE.MathUtils.damp(mats.polyurea.roughness, fresh ? 0.26 : 0.4, 3, easeDt(clock.current, dt));
     // Con lluvia, el acabado se ve mojado
     const rainOnTop = t > 24 ? rainAmount(t) : 0;
     mats.topcoat.roughness = 0.55 - rainOnTop * 0.4;

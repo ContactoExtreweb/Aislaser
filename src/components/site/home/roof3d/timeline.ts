@@ -9,6 +9,8 @@ export type Stage = {
   text: string;
   start: number;
   end: number;
+  /** Instante que mejor resume el paso: es el que se enseña al elegirlo con la animación en pausa */
+  poster: number;
   /** Escena con lluvia (cielo de tormenta) */
   rain?: boolean;
 };
@@ -21,6 +23,7 @@ export const STAGES: Stage[] = [
     text: "Las fisuras del hormigón dejan pasar el agua: aparecen charcos, goteras y humedades en el interior.",
     start: 0,
     end: 5.5,
+    poster: 3.8,
     rain: true,
   },
   {
@@ -30,6 +33,7 @@ export const STAGES: Stage[] = [
     text: "Limpiamos y granallamos el hormigón y sellamos las fisuras. Sin un buen soporte no hay buena impermeabilización.",
     start: 5.5,
     end: 9.5,
+    poster: 7.4,
   },
   {
     key: "imprimacion",
@@ -38,6 +42,7 @@ export const STAGES: Stage[] = [
     text: "Una imprimación específica para el soporte asegura la máxima adherencia de la membrana.",
     start: 9.5,
     end: 12.5,
+    poster: 11,
   },
   {
     key: "poliurea",
@@ -46,6 +51,7 @@ export const STAGES: Stage[] = [
     text: "Proyectamos la poliurea en caliente: forma una membrana continua, sin juntas ni solapes, que cura en segundos y sube por petos y lucernarios.",
     start: 12.5,
     end: 22,
+    poster: 16.5,
   },
   {
     key: "acabado",
@@ -54,6 +60,7 @@ export const STAGES: Stage[] = [
     text: "Un acabado alifático protege la membrana del sol y le da el color definitivo.",
     start: 22,
     end: 24.5,
+    poster: 23.2,
   },
   {
     key: "estanqueidad",
@@ -62,6 +69,7 @@ export const STAGES: Stage[] = [
     text: "Vuelve a llover: el agua corre hacia el sumidero sin encontrar ni una junta por la que entrar. El interior, seco.",
     start: 24.5,
     end: 31,
+    poster: 27.5,
     rain: true,
   },
   {
@@ -71,6 +79,7 @@ export const STAGES: Stage[] = [
     text: "Soporte preparado, imprimación, membrana de poliurea y acabado: un sistema completo que no necesita mantenimiento.",
     start: 31,
     end: 37,
+    poster: 34,
   },
 ];
 
