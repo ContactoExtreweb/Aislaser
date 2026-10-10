@@ -1,6 +1,6 @@
 # Contexto para continuar en otra conversación
 
-> Documento de traspaso. Léelo entero antes de tocar nada. **Bórralo antes de llevar la sección 3D a `main`**: el repositorio es público y esto son notas internas.
+> Documento de traspaso. Léelo entero antes de tocar nada. **Bórralo cuando se cierre la revisión de la sección 3D** (apartado «Pendiente»): el repositorio es público y esto son notas internas.
 
 ## 0. Reglas de trabajo con este usuario (obligatorias)
 
@@ -66,10 +66,19 @@
 
 ### Estado
 
-- **Funciona de principio a fin**, en desarrollo y con los 7 pasos.
-- **El código está en la rama `claude/awesome-bohr-dz9gff`**, en el commit «WIP» que acompaña a este documento.
-- **No está en `main` ni desplegado.**
-- TypeScript compila sin errores.
+- **Publicada en `main` y en Netlify** (el usuario pidió subirla antes de terminar la revisión adversarial).
+- Hecho en la segunda sesión:
+  - capturas revisadas;
+  - QA en móvil, «reducir movimiento» y navegador sin WebGL;
+  - pausa real: lluvia, partículas, cámara y giros congelados, con `frameloop="demand"` en pausa;
+  - encuadre de la muestra en móvil;
+  - fotograma representativo por paso al elegirlo en pausa (`poster` en `STAGES`);
+  - mangueras apoyadas en la cubierta;
+  - `npm run build` correcto y consola de producción limpia, salvo el aviso de `THREE.Clock`, que viene de fiber.
+- Comprobado en producción local:
+  - three.js (≈1 MB sin comprimir) solo se descarga al acercarse a la sección;
+  - no dibuja fuera de pantalla ni en pausa;
+  - `window.__roof` no existe en producción.
 
 **Archivos nuevos o cambiados:**
 
@@ -132,25 +141,11 @@
 - **Granalladora:** rodea el lucernario. Antes lo atravesaba.
 - **Procesos en el contenedor:** no usar `pkill`/`pgrep` con patrones que coincidan con el propio comando de bash (sale con el código 144). Usar `ps -eo pid,ppid,args` con `awk`.
 
-### Pendiente, en este orden
+### Pendiente
 
-1. **Revisar las últimas capturas,** que se hicieron pero no se llegaron a mirar. Hay que repetirlas en la nueva sesión en t = 7.4, 11, 27.5 y 34. Comprobar:
-   - que la granalladora no pisa el lucernario;
-   - que la imprimación parece hormigón con resina;
-   - que el agua al sumidero es sutil y no quedan anillos blancos;
-   - que las etiquetas de la muestra caben en pantalla.
-2. **QA de la sección:**
-   - Móvil (390×844): encuadre, rótulo debajo y pasos desplazables.
-   - `prefers-reduced-motion`.
-   - El mensaje sin WebGL.
-   - El botón de pausa.
-   - Opcional: una imagen fija (póster) mientras carga.
-3. **Producción:**
-   - `npm run build`.
-   - Revisar la consola en producción (sin errores ni avisos).
-   - Rendimiento: fps y que se pare fuera de pantalla.
-4. **Revisión adversarial** con el workflow y corrección de lo que salga.
-5. **Cierre:**
+1. **Revisión adversarial** de la sección, con un workflow de 5 dimensiones (corrección, rendimiento, accesibilidad, integración con Next y contenido técnico), cada una verificada por un escéptico. Si la sesión se cortó antes de terminar, repetirla.
+2. **Aplicar** los hallazgos confirmados.
+3. **Cierre:**
    - Borrar este documento.
    - Commit y push a la rama y a `main`.
    - Comprobar en https://aislaser.netlify.app.
@@ -213,4 +208,4 @@ El hook `window.__roof` sólo existe con `npm run dev`. En producción hay que c
 
 ## 5. Mensaje para pegar al empezar la nueva conversación
 
-> Háblame siempre en español. Lee `CONTEXTO-MIGRACION.md` en la rama `claude/awesome-bohr-dz9gff` y continúa con la sección 3D desde el apartado «Pendiente». Cuando esté todo revisado, despliega en `main` (Netlify publica solo). La contraseña del admin de pruebas `saul@prueba.es` es: ______
+> Háblame siempre en español. Lee `CONTEXTO-MIGRACION.md` y continúa con la sección 3D desde el apartado «Pendiente». Cuando esté todo revisado, despliega en `main` (Netlify publica solo). La contraseña del admin de pruebas `saul@prueba.es` es: ______
