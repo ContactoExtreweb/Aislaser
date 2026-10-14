@@ -39,7 +39,7 @@ export const company = {
   mapsUrl:
     "https://www.google.com/maps/search/?api=1&query=Aislaser+Pol%C3%ADgono+Industrial+Campanario+Badajoz",
   youtubeId: "aF-nqiuiyII",
-  yearsExperience: "+15",
+  yearsExperience: "+30",
 } as const;
 
 export const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.aislaser.es").replace(/\/$/, "");

@@ -1,6 +1,6 @@
 # Contexto para continuar en otra conversación
 
-> Documento de traspaso. Léelo entero antes de tocar nada. **Bórralo cuando se cierre la revisión de la sección 3D** (apartado «Pendiente»): el repositorio es público y esto son notas internas.
+> Documento de traspaso. Léelo entero antes de tocar nada. **Bórralo cuando no quede nada en el apartado «Pendiente» (sección 3)**: el repositorio es público y esto son notas internas.
 
 ## 0. Reglas de trabajo con este usuario (obligatorias)
 
@@ -56,7 +56,31 @@
   - La web pública lee de Supabase. Publicar y despublicar se refleja en aproximadamente 1 s.
   - Las 32 obras de la web antigua se importaron con `scripts/importar-obras.mjs`. El script es idempotente y tiene la opción `--completar`.
   - Probado de extremo a extremo contra Supabase real y Netlify.
-- **Último commit desplegado en `main`:** `43ad337` («Galería de obras: remates de la revisión final del panel»).
+- **Sección 3D de la portada** (`src/components/site/home/RoofSystemSection.tsx` y `roof3d/*`), publicada.
+- **Sesión del 14/10/2026, publicada:**
+  - **Presupuestos en el panel** (`/panel/presupuestos`):
+    - Base de datos: migración `supabase/migrations/005_presupuestos.sql`, también incluida en `schema.sql` y `pendiente.sql`.
+      - Tablas `presupuestos` y `presupuesto_partidas`.
+      - Numeración por año con candado.
+      - Triggers que protegen el número y actualizan `updated_at`.
+      - RLS solo para administradores.
+      - `app_settings.condiciones_presupuesto`.
+      - «insuflado» en la restricción de servicios de `web_obras`.
+      - Validada en un PostgreSQL local: idempotente, sobre una base antigua y con RLS.
+    - Código:
+      - `src/lib/presupuestos/types.ts`: importes en céntimos y `parseDecimal`, que toma «1.500» como mil quinientos.
+      - `src/app/panel/presupuestos-actions.ts`.
+      - `src/components/panel/presupuestos/*`: editor con autoguardado en `useSaveQueue`, documento paginado sobre el membrete, PDF y catálogo de partidas.
+      - Botón «Hacer presupuesto» en Mensajes y condiciones por defecto en Ajustes.
+    - Refactor compartido: `LetterheadPage` y `document/exportPages.ts`, usados por informes y presupuestos.
+    - **El usuario tiene que ejecutar la 005 en Supabase.** Hasta entonces, el panel muestra un aviso pidiéndola.
+  - **Servicio de insuflado:**
+    - contenido en `src/content/services.ts`, con los campos nuevos `process`, `diagram`, `faqs` y `seo`;
+    - ilustración propia `public/images/site/insuflado-fachada.webp`;
+    - FAQ con JSON-LD.
+  - **SEO centralizado** en `src/content/seo.ts`.
+  - **Años de experiencia:** +30, en `company.yearsExperience` y los textos.
+- **Prueba de punta a punta de los presupuestos:** 22 comprobaciones contra un entorno local con PostgreSQL 16, PostgREST 12 e imitador de Supabase. Los scripts están en el scratchpad; si hace falta repetirla, montarla de nuevo.
 
 ## 3. TRABAJO EN CURSO: sección 3D «Así impermeabilizamos una cubierta»
 
@@ -143,8 +167,18 @@
 
 ### Pendiente
 
-1. **Revisión adversarial** de la sección, con un workflow de 5 dimensiones (corrección, rendimiento, accesibilidad, integración con Next y contenido técnico), cada una verificada por un escéptico. Si la sesión se cortó antes de terminar, repetirla.
-2. **Aplicar** los hallazgos confirmados.
+1. **Revisión adversarial pendiente.** El límite de uso cortó dos intentos. Falta revisar:
+   - corrección de los presupuestos (SQL, importes, paginación, autoguardado);
+   - insuflado, SEO y regresiones de los refactors (informes y dosieres siguen saliendo igual);
+   - los 29 hallazgos sin verificar de la sección 3D, que están en `hallazgos-3d.jsonl` en el scratchpad. Si no está, repetir la revisión de la sección. Los más relevantes:
+     - con solo WebGL 1 se cae la portada; falta un error boundary;
+     - `aria-live` anuncia cada paso en bucle;
+     - `small` se calcula con 768 px y el CSS usa 640 px;
+     - re-render de la escena en cada cambio de paso (`React.memo`);
+     - las texturas generadas bloquean el hilo principal unos 1,5 s.
+
+   Lo de accesibilidad y móvil de los presupuestos ya está revisado y corregido.
+2. **Palabras clave del cliente para el SEO:** aún no las ha enviado. Repartirlas en `src/content/seo.ts`, en el campo `seo` de cada servicio y en los H1 y textos.
 3. **Cierre:**
    - Borrar este documento.
    - Commit y push a la rama y a `main`.
@@ -208,4 +242,4 @@ El hook `window.__roof` sólo existe con `npm run dev`. En producción hay que c
 
 ## 5. Mensaje para pegar al empezar la nueva conversación
 
-> Háblame siempre en español. Lee `CONTEXTO-MIGRACION.md` y continúa con la sección 3D desde el apartado «Pendiente». Cuando esté todo revisado, despliega en `main` (Netlify publica solo). La contraseña del admin de pruebas `saul@prueba.es` es: ______
+> Háblame siempre en español. Lee `CONTEXTO-MIGRACION.md` y continúa desde el apartado «Pendiente». Cuando esté todo revisado, despliega en `main` (Netlify publica solo). La contraseña del admin de pruebas `saul@prueba.es` es: ______

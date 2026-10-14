@@ -2,17 +2,7 @@
 import { LAYOUTS, LetterheadPage, formatDate } from "@/components/panel/document/DossierDocument";
 import { company } from "@/content/company";
 import type { Branding } from "@/lib/dossier/types";
-import {
-  addDays,
-  formatEuros,
-  formatPercent,
-  formatQuantity,
-  lineCents,
-  quoteNumber,
-  quoteTotals,
-  type Quote,
-  type QuoteLine,
-} from "@/lib/presupuestos/types";
+import { addDays, formatEuros, formatPercent, formatQuantity, lineCents, quoteNumber, quoteTotals, type Quote, type QuoteLine } from "@/lib/presupuestos/types";
 
 /* El presupuesto va sobre el mismo membrete que los informes técnicos (caja de LAYOUTS.informe) */
 export const QUOTE_LAYOUT = LAYOUTS.informe;
@@ -81,7 +71,15 @@ export function buildQuoteBlocks(quote: Quote, branding: Branding): QuoteBlock[]
         chapter += 1;
         item = 0;
         open = l;
-        blocks.push({ kind: "chapter", key: `ch-${l.id}`, number: String(chapter), title: l.descripcion, space: chapter > 1 ? 10 : 0, keepWithNext: true, inTable: true });
+        blocks.push({
+          kind: "chapter",
+          key: `ch-${l.id}`,
+          number: String(chapter),
+          title: l.descripcion,
+          space: chapter > 1 ? 10 : 0,
+          keepWithNext: true,
+          inTable: true,
+        });
       } else {
         item += 1;
         blocks.push({ kind: "line", key: `l-${l.id}`, number: chapter ? `${chapter}.${item}` : String(item), line: l, space: 0, inTable: true });
@@ -165,7 +163,9 @@ export function QuoteBlockView({ block }: { block: QuoteBlock }) {
       return (
         <div style={{ display: "flex", gap: 24, paddingTop: 24 }}>
           <div style={{ flex: 1 }}>
-            <p style={{ margin: 0, fontFamily: font.display, fontWeight: 700, fontSize: 30, lineHeight: 1, letterSpacing: "0.02em", color: INK }}>PRESUPUESTO</p>
+            <p style={{ margin: 0, fontFamily: font.display, fontWeight: 700, fontSize: 30, lineHeight: 1, letterSpacing: "0.02em", color: INK }}>
+              PRESUPUESTO
+            </p>
             <div style={{ marginTop: 6, width: 46, height: 4, background: YELLOW }} />
             <table style={{ ...text, marginTop: 12, borderCollapse: "collapse" }}>
               <tbody>
@@ -183,10 +183,21 @@ export function QuoteBlockView({ block }: { block: QuoteBlock }) {
             </table>
           </div>
           <div style={{ width: 268, border: `1px solid ${LINE}`, borderRadius: 6, padding: "10px 14px" }}>
-            <p style={{ margin: 0, fontSize: 9.5, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: MUTED, fontFamily: font.sans }}>Cliente</p>
+            <p style={{ margin: 0, fontSize: 9.5, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: MUTED, fontFamily: font.sans }}>
+              Cliente
+            </p>
             {client.length ? (
               client.map((c, i) => (
-                <p key={i} style={{ ...small, margin: i ? "2px 0 0" : "5px 0 0", fontWeight: i === 0 ? 800 : 400, fontSize: i === 0 ? 12.5 : 11, overflowWrap: "anywhere" }}>
+                <p
+                  key={i}
+                  style={{
+                    ...small,
+                    margin: i ? "2px 0 0" : "5px 0 0",
+                    fontWeight: i === 0 ? 800 : 400,
+                    fontSize: i === 0 ? 12.5 : 11,
+                    overflowWrap: "anywhere",
+                  }}
+                >
                   {c}
                 </p>
               ))
@@ -223,7 +234,16 @@ export function QuoteBlockView({ block }: { block: QuoteBlock }) {
       return (
         <Row
           cells={["Nº", "Descripción", "Ud.", "Cantidad", "Precio", "Importe"]}
-          style={{ background: "#2e2b2b", color: "#ffffff", fontWeight: 800, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", padding: "6px 8px", borderRadius: 4 }}
+          style={{
+            background: "#2e2b2b",
+            color: "#ffffff",
+            fontWeight: 800,
+            fontSize: 10,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            padding: "6px 8px",
+            borderRadius: 4,
+          }}
         />
       );
 

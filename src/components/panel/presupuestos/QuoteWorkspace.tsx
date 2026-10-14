@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -44,7 +44,8 @@ import { useQuoteEditor } from "./useQuoteEditor";
 const field =
   "mt-1.5 w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-ink-900 focus:ring-4 focus:ring-laser-500/25";
 const card = "rounded-[1.75rem] border border-ink-200 bg-white p-5 shadow-[0_20px_50px_-40px_rgb(0_0_0/0.4)] sm:p-7";
-const iconButton = "grid size-9 place-items-center rounded-xl text-ink-400 transition-colors hover:bg-ink-100 hover:text-ink-900 disabled:opacity-30";
+const iconButton =
+  "grid size-9 place-items-center rounded-xl text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-900 aria-disabled:cursor-default aria-disabled:opacity-30 aria-disabled:hover:bg-transparent";
 
 type Editor = ReturnType<typeof useQuoteEditor>;
 
@@ -68,9 +69,19 @@ export function QuoteWorkspace({ initial, brandingSource }: { initial: Quote; br
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => rootRef.current?.style.setProperty("--ws-h", `${el.offsetHeight}px`));
+    const html = document.documentElement;
+    const ro = new ResizeObserver(() => {
+      rootRef.current?.style.setProperty("--ws-h", `${el.offsetHeight}px`);
+      // Al moverse con el tabulador, el campo con el foco no queda debajo de la cabecera ni de la barra del total
+      html.style.scrollPaddingTop = `${el.offsetHeight + 16}px`;
+      html.style.scrollPaddingBottom = window.matchMedia("(min-width: 1024px)").matches ? "" : "96px";
+    });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      html.style.scrollPaddingTop = "";
+      html.style.scrollPaddingBottom = "";
+    };
   }, []);
 
   const showPreview = () => {
@@ -100,12 +111,11 @@ export function QuoteWorkspace({ initial, brandingSource }: { initial: Quote; br
             <SaveStatus save={save} onRetry={api.retryAll} />
           </div>
 
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <div className="flex flex-1 rounded-xl bg-ink-100 p-1 sm:flex-none" role="tablist">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <div className="flex flex-1 rounded-xl bg-ink-100 p-1 sm:flex-none" role="group" aria-label="Modo">
               <button
                 type="button"
-                role="tab"
-                aria-selected={tab === "editar"}
+                aria-pressed={tab === "editar"}
                 onClick={() => setTab("editar")}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all sm:flex-none ${
                   tab === "editar" ? "bg-white text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-900"
@@ -115,8 +125,7 @@ export function QuoteWorkspace({ initial, brandingSource }: { initial: Quote; br
               </button>
               <button
                 type="button"
-                role="tab"
-                aria-selected={tab === "vista"}
+                aria-pressed={tab === "vista"}
                 onClick={showPreview}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all sm:flex-none ${
                   tab === "vista" ? "bg-white text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-900"
@@ -133,7 +142,7 @@ export function QuoteWorkspace({ initial, brandingSource }: { initial: Quote; br
               id="quote-status"
               value={quote.estado}
               onChange={(e) => api.setField("estado", e.target.value as QuoteStatus)}
-              className="shrink-0 rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm font-bold text-ink-800 outline-none focus:border-ink-900"
+              className="shrink-0 rounded-xl border border-ink-300 bg-white px-3 py-2 text-base font-bold text-ink-800 outline-none focus:border-ink-900 sm:text-sm"
             >
               {QUOTE_STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -229,7 +238,7 @@ function TextField({
     <label className={`block ${className}`}>
       <span className="text-sm font-bold text-ink-800">{label}</span>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} maxLength={max} placeholder={placeholder} className={field} />
-      {hint && <span className="mt-1 block text-xs text-ink-400">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-ink-500">{hint}</span>}
     </label>
   );
 }
@@ -278,19 +287,23 @@ function NumberField({
   labelClassName?: string;
   /** Nombre accesible más completo que la etiqueta visible */
   ariaLabel?: string;
-  /** Decimales fijos al mostrarlo (el precio, con dos: 24,90) */
+  /** Decimales fijos al mostrarlo (el precio, con dos: 24,90); también es el máximo que se admite */
   decimals?: number;
 }) {
+  const errorId = useId();
   const format = (n: number) => (decimals === undefined ? String(n) : n.toFixed(decimals)).replace(".", ",");
   const [text, setText] = useState(format(value));
   const [focused, setFocused] = useState(false);
   const shown = focused ? text : format(value);
-  const invalid =
-    focused &&
-    (() => {
-      const n = parseDecimal(text);
-      return n === null || (min !== undefined && n < min) || (max !== undefined && n > max);
-    })();
+  const problem = (t: string) => {
+    const n = parseDecimal(t);
+    if (n === null) return "Escribe un número (con coma para los decimales).";
+    if (min !== undefined && n < min) return max !== undefined ? `Entre ${format(min)} y ${format(max)}.` : `Como mínimo ${format(min)}.`;
+    if (max !== undefined && n > max) return min !== undefined ? `Entre ${format(min)} y ${format(max)}.` : `Como máximo ${format(max)}.`;
+    if (decimals !== undefined && Math.abs(n * 10 ** decimals - Math.round(n * 10 ** decimals)) > 1e-6) return `Como mucho ${decimals} decimales.`;
+    return null;
+  };
+  const invalid = focused ? problem(text) : null;
   return (
     <label className={`block ${className}`}>
       <span className={labelClassName}>{label}</span>
@@ -299,27 +312,37 @@ function NumberField({
           inputMode="decimal"
           aria-label={ariaLabel}
           value={shown}
-          aria-invalid={invalid || undefined}
-          onFocus={() => {
+          aria-invalid={invalid ? true : undefined}
+          aria-describedby={invalid ? errorId : undefined}
+          onFocus={(e) => {
             setText(format(value));
             setFocused(true);
+            // Seleccionado entero: lo que se escribe sustituye al valor («0,00» → «25»)
+            const input = e.currentTarget;
+            requestAnimationFrame(() => input.select());
           }}
           onBlur={() => setFocused(false)}
           onChange={(e) => {
             setText(e.target.value);
-            const n = parseDecimal(e.target.value);
-            if (n === null || (min !== undefined && n < min) || (max !== undefined && n > max)) return;
-            onChange(n);
+            if (problem(e.target.value)) return;
+            onChange(parseDecimal(e.target.value)!);
           }}
           className={`${inputClassName} ${suffix ? "pr-9" : ""} text-right tabular-nums ${invalid ? "!border-red-500" : ""}`}
         />
         {suffix && (
           // Centrado respecto al campo (el de las fichas lleva margen superior)
-          <span className={`pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-ink-400 ${inputClassName.includes("mt-1.5") ? "mt-[3px]" : ""}`}>
+          <span
+            className={`pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-ink-400 ${inputClassName.includes("mt-1.5") ? "mt-[3px]" : ""}`}
+          >
             {suffix}
           </span>
         )}
       </span>
+      {invalid && (
+        <span id={errorId} className="mt-1 block text-xs font-semibold text-red-600">
+          {invalid}
+        </span>
+      )}
     </label>
   );
 }
@@ -458,7 +481,13 @@ function LinesCard({ api }: { api: Editor }) {
       </datalist>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <button type="button" onClick={() => add({ tipo: "partida" }, "partida")} disabled={!!adding} className="btn-primary !py-2.5 disabled:opacity-60">
+        <button
+          type="button"
+          data-add-line
+          onClick={() => add({ tipo: "partida" }, "partida")}
+          disabled={!!adding}
+          className="btn-primary !py-2.5 disabled:opacity-60"
+        >
           {adding === "partida" ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" strokeWidth={2.5} />} Partida
         </button>
         <button type="button" onClick={() => add({ tipo: "capitulo" }, "capitulo")} disabled={!!adding} className="btn-dark !py-2.5 disabled:opacity-60">
@@ -502,32 +531,71 @@ function LinesCard({ api }: { api: Editor }) {
   );
 }
 
-function RowActions({ line, index, total, api }: { line: QuoteLine; index: number; total: number; api: Editor }) {
-  const label = line.tipo === "capitulo" ? "el capítulo" : "la partida";
+/** Lleva el foco a un elemento de una fila tras re-renderizar (al mover o borrar, el botón pulsado se pierde) */
+function focusLater(selector: string, fallback?: string) {
+  requestAnimationFrame(() => {
+    const el = document.querySelector<HTMLElement>(selector) ?? (fallback ? document.querySelector<HTMLElement>(fallback) : null);
+    el?.focus({ preventScroll: false });
+  });
+}
+
+function RowActions({ line, number, index, total, api }: { line: QuoteLine; number: string; index: number; total: number; api: Editor }) {
+  const label = `${line.tipo === "capitulo" ? "el capítulo" : "la partida"} ${number}`;
+  const first = index === 0;
+  const last = index === total - 1;
+  const move = (delta: -1 | 1) => {
+    if ((delta < 0 && first) || (delta > 0 && last)) return;
+    api.moveLine(line.id, delta);
+    focusLater(`[data-line="${line.id}"] [data-action="${delta < 0 ? "up" : "down"}"]`);
+  };
   return (
     <div className="flex items-center justify-end">
-      <button type="button" className={iconButton} disabled={index === 0} onClick={() => api.moveLine(line.id, -1)} aria-label={`Subir ${label}`} title="Subir">
+      <button
+        type="button"
+        data-action="up"
+        className={iconButton}
+        aria-disabled={first || undefined}
+        onClick={() => move(-1)}
+        aria-label={`Subir ${label}`}
+        title="Subir"
+      >
         <ArrowUp className="size-4" />
       </button>
       <button
         type="button"
+        data-action="down"
         className={iconButton}
-        disabled={index === total - 1}
-        onClick={() => api.moveLine(line.id, 1)}
+        aria-disabled={last || undefined}
+        onClick={() => move(1)}
         aria-label={`Bajar ${label}`}
         title="Bajar"
       >
         <ArrowDown className="size-4" />
       </button>
-      <button type="button" className={iconButton} onClick={() => void api.duplicateLine(line.id)} aria-label={`Duplicar ${label}`} title="Duplicar">
+      <button
+        type="button"
+        className={iconButton}
+        onClick={async () => {
+          const id = await api.duplicateLine(line.id);
+          if (id) focusLater(`[data-line="${id}"] textarea, [data-line="${id}"] input`);
+        }}
+        aria-label={`Duplicar ${label}`}
+        title="Duplicar"
+      >
         <Copy className="size-4" />
       </button>
       <button
         type="button"
         className={`${iconButton} hover:!bg-red-50 hover:!text-red-600`}
-        onClick={() => {
+        onClick={async () => {
           const empty = !line.descripcion.trim() && line.precio === 0;
-          if (empty || confirm(`¿Eliminar ${label}${line.descripcion ? ` «${line.descripcion.slice(0, 60)}»` : ""}?`)) void api.deleteLine(line.id);
+          if (!empty && !confirm(`¿Eliminar ${label}${line.descripcion ? ` («${line.descripcion.slice(0, 80)}»)` : ""}?`)) return;
+          // El foco pasa a la fila que ocupe su sitio (o a la anterior, o al botón de añadir)
+          const rows = Array.from(document.querySelectorAll<HTMLElement>("li[data-line]"));
+          const i = rows.findIndex((r) => r.dataset.line === line.id);
+          const next = rows[i + 1]?.dataset.line ?? rows[i - 1]?.dataset.line;
+          await api.deleteLine(line.id);
+          focusLater(next ? `[data-line="${next}"] textarea, [data-line="${next}"] input` : "[data-add-line]", "[data-add-line]");
         }}
         aria-label={`Eliminar ${label}`}
         title="Eliminar"
@@ -539,9 +607,9 @@ function RowActions({ line, index, total, api }: { line: QuoteLine; index: numbe
 }
 
 const cellInput =
-  "w-full rounded-lg border border-ink-200 bg-white px-2.5 py-2 text-sm text-ink-900 outline-none transition-colors focus:border-ink-900 focus:ring-4 focus:ring-laser-500/25";
+  "w-full rounded-lg border border-ink-300 bg-white px-2.5 py-2 text-base text-ink-900 sm:text-sm outline-none transition-colors focus:border-ink-900 focus:ring-4 focus:ring-laser-500/25";
 
-const tinyLabel = "mb-1 block text-[11px] font-extrabold tracking-wider text-ink-400 uppercase";
+const tinyLabel = "mb-1 block text-[11px] font-extrabold tracking-wider text-ink-500 uppercase";
 
 function LineRow({ line, number, index, total, api }: { line: QuoteLine; number: string; index: number; total: number; api: Editor }) {
   return (
@@ -595,7 +663,7 @@ function LineRow({ line, number, index, total, api }: { line: QuoteLine; number:
           <span className="font-display text-xl font-bold text-ink-900 tabular-nums">{formatEuros(lineCents(line))}</span>
         </p>
         <div className="w-full sm:w-auto">
-          <RowActions line={line} index={index} total={total} api={api} />
+          <RowActions line={line} number={number} index={index} total={total} api={api} />
         </div>
       </div>
     </li>
@@ -621,7 +689,7 @@ function ChapterRow({ line, number, cents, index, total, api }: { line: QuoteLin
         <span className="font-extrabold text-ink-900 tabular-nums">{formatEuros(cents)}</span>
       </p>
       <div className="col-span-2 md:col-span-1">
-        <RowActions line={line} index={index} total={total} api={api} />
+        <RowActions line={line} number={number} index={index} total={total} api={api} />
       </div>
     </li>
   );
@@ -649,7 +717,7 @@ function TextArea({
   return (
     <label className="block">
       <span className="text-sm font-bold text-ink-800">{label}</span>
-      {hint && <span className="mt-0.5 block text-xs text-ink-400">{hint}</span>}
+      {hint && <span className="mt-0.5 block text-xs text-ink-500">{hint}</span>}
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}

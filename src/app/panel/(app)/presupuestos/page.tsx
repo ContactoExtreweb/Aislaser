@@ -3,15 +3,7 @@ import Link from "next/link";
 import { CircleAlert, FileSpreadsheet } from "lucide-react";
 import { QuoteActions, NewQuoteButton } from "@/components/panel/presupuestos/QuoteActions";
 import { formatDate } from "@/components/panel/document/DossierDocument";
-import {
-  QUOTE_STATUSES,
-  formatEuros,
-  hydrateQuote,
-  quoteNumber,
-  quoteTotals,
-  statusInfo,
-  type QuoteStatus,
-} from "@/lib/presupuestos/types";
+import { QUOTE_STATUSES, formatEuros, hydrateQuote, quoteNumber, quoteTotals, statusInfo, type QuoteStatus } from "@/lib/presupuestos/types";
 import { getSupabaseServer } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Presupuestos" };
@@ -24,7 +16,9 @@ export default async function PresupuestosPage({ searchParams }: PageProps<"/pan
   const supabase = await getSupabaseServer();
   const { data, error } = await supabase
     .from("presupuestos")
-    .select("id, anio, numero, estado, fecha, cliente_nombre, obra, ubicacion, iva, descuento, updated_at, presupuesto_partidas(id, tipo, cantidad, precio, orden)")
+    .select(
+      "id, anio, numero, estado, fecha, cliente_nombre, obra, ubicacion, iva, descuento, updated_at, presupuesto_partidas(id, tipo, cantidad, precio, orden)",
+    )
     .order("anio", { ascending: false })
     .order("numero", { ascending: false });
   const missingTable = error?.code === "PGRST205" || error?.code === "42P01";
@@ -38,9 +32,7 @@ export default async function PresupuestosPage({ searchParams }: PageProps<"/pan
   // Búsqueda por número, cliente, obra o ubicación (sin distinguir tildes ni mayúsculas)
   const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const needle = norm(query);
-  const matching = needle
-    ? all.filter((p) => norm(`${quoteNumber(p)} ${p.cliente_nombre} ${p.obra} ${p.ubicacion}`).includes(needle))
-    : all;
+  const matching = needle ? all.filter((p) => norm(`${quoteNumber(p)} ${p.cliente_nombre} ${p.obra} ${p.ubicacion}`).includes(needle)) : all;
   const shown = status ? matching.filter((p) => p.estado === status) : matching;
 
   const year = new Date().getFullYear();
@@ -92,7 +84,10 @@ export default async function PresupuestosPage({ searchParams }: PageProps<"/pan
           <form className="mt-8" role="search">
             {status && <input type="hidden" name="estado" value={status} />}
             <input
+              type="search"
               name="q"
+              aria-label="Buscar presupuestos"
+              enterKeyHint="search"
               defaultValue={query}
               placeholder="Buscar por número, cliente, obra o ubicación…"
               className="w-full rounded-2xl border border-ink-200 bg-white px-5 py-3.5 outline-none focus:border-ink-900 focus:ring-4 focus:ring-laser-500/25"
@@ -116,7 +111,9 @@ export default async function PresupuestosPage({ searchParams }: PageProps<"/pan
             })}
           </nav>
 
-          {error && !missingTable && <p className="mt-6 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700">Error al cargar los presupuestos: {error.message}</p>}
+          {error && !missingTable && (
+            <p className="mt-6 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700">Error al cargar los presupuestos: {error.message}</p>
+          )}
 
           {shown.length === 0 && !error ? (
             <div className="mt-8 flex flex-col items-center rounded-[2rem] border-2 border-dashed border-ink-300 bg-white px-6 py-16 text-center">

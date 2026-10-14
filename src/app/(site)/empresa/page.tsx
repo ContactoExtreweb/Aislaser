@@ -24,7 +24,7 @@ const principles = [
   {
     icon: Medal,
     title: "Experiencia",
-    text: "Más de 15 años ejecutando obras de gran envergadura y exigencia para las principales empresas del sector.",
+    text: "Más de 30 años ejecutando obras de gran envergadura y exigencia para las principales empresas del sector.",
   },
   {
     icon: Users,
@@ -43,7 +43,7 @@ export default function EmpresaPage() {
             Especialistas en <span className="text-laser-500">poliureas</span>
           </>
         }
-        intro="Más de 15 años de experiencia y una referencia nacional en aplicaciones con poliureas y poliuretanos."
+        intro="Más de 30 años de experiencia y una referencia nacional en aplicaciones con poliureas y poliuretanos."
         image="/images/site/banner-aeropuerto.webp"
         crumbs={[{ label: "Empresa" }]}
       />
@@ -136,7 +136,7 @@ export default function EmpresaPage() {
             <div className="grid aspect-square place-items-center rounded-[1.5rem] bg-laser-500 p-6 text-center text-ink-900">
               <div>
                 <Award className="mx-auto size-10" strokeWidth={1.5} />
-                <p className="mt-3 font-display text-5xl font-bold">+15</p>
+                <p className="mt-3 font-display text-5xl font-bold">{company.yearsExperience}</p>
                 <p className="text-sm font-bold">años de experiencia</p>
               </div>
             </div>

@@ -16,11 +16,7 @@ export function QuoteSettingsForm({ conditions }: { conditions: string }) {
   async function save() {
     setBusy(true);
     setMessage(null);
-    const { data, error } = await getSupabaseBrowser()
-      .from("app_settings")
-      .update({ condiciones_presupuesto: value.trim() })
-      .eq("id", 1)
-      .select("id");
+    const { data, error } = await getSupabaseBrowser().from("app_settings").update({ condiciones_presupuesto: value.trim() }).eq("id", 1).select("id");
     setBusy(false);
     if (error || !data?.length) setMessage({ ok: false, text: `No se pudo guardar: ${error?.message ?? "la sesión ha caducado. Vuelve a entrar."}` });
     else setMessage({ ok: true, text: "Condiciones guardadas. Se usarán en los presupuestos nuevos." });
@@ -30,8 +26,8 @@ export function QuoteSettingsForm({ conditions }: { conditions: string }) {
     <section className="rounded-[1.75rem] border border-ink-200 bg-white p-5 sm:p-7">
       <h2 className="text-3xl font-bold">Condiciones de los presupuestos</h2>
       <p className="mt-1 text-ink-500">
-        Las llevan todos los presupuestos nuevos: forma de pago, plazos, lo que no está incluido, garantía… Una condición por línea. En cada
-        presupuesto se pueden cambiar.
+        Las llevan todos los presupuestos nuevos: forma de pago, plazos, lo que no está incluido, garantía… Una condición por línea. En cada presupuesto se
+        pueden cambiar.
       </p>
       <label className="mt-5 block">
         <span className="sr-only">Condiciones por defecto</span>
@@ -42,7 +38,10 @@ export function QuoteSettingsForm({ conditions }: { conditions: string }) {
           {busy ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />} Guardar condiciones
         </button>
         {message && (
-          <p role={message.ok ? "status" : "alert"} className={`flex items-center gap-2 text-sm font-semibold ${message.ok ? "text-emerald-700" : "text-red-700"}`}>
+          <p
+            role={message.ok ? "status" : "alert"}
+            className={`flex items-center gap-2 text-sm font-semibold ${message.ok ? "text-emerald-700" : "text-red-700"}`}
+          >
             {message.ok ? <CircleCheck className="size-4" /> : <CircleAlert className="size-4" />} {message.text}
           </p>
         )}

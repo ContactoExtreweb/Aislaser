@@ -220,7 +220,16 @@ export function DossierWorkspace({
   );
 }
 
-export function SaveStatus({ save, demo = false, onRetry }: { save: SaveState; demo?: boolean; onRetry: () => void }) {
+/** Estado del guardado automático, en una región que los lectores de pantalla anuncian */
+export function SaveStatus(props: { save: SaveState; demo?: boolean; onRetry: () => void }) {
+  return (
+    <div role="status" aria-live="polite">
+      <SaveStatusText {...props} />
+    </div>
+  );
+}
+
+function SaveStatusText({ save, demo = false, onRetry }: { save: SaveState; demo?: boolean; onRetry: () => void }) {
   if (demo) return <p className="text-xs font-semibold text-ink-400">Modo demostración · sin guardar</p>;
   if (save.failed > 0)
     return (

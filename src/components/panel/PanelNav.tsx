@@ -17,7 +17,7 @@ export function PanelNav({ email, unread }: { email: string; unread: number }) {
   ];
   return (
     <nav className="border-b border-white/5 bg-ink-950 text-white print:hidden">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-1 px-3 sm:gap-2 sm:px-4">
         <Link href="/panel" className="mr-2 flex items-center gap-2.5" aria-label="Panel de Aislaser">
           <LogoMark variant="white" className="h-8 w-auto" />
           <span className="hidden text-xs font-extrabold tracking-[0.22em] text-ink-400 uppercase sm:inline">Panel</span>
@@ -27,9 +27,9 @@ export function PanelNav({ email, unread }: { email: string; unread: number }) {
             key={l.href}
             href={l.href}
             title={l.label}
-            aria-label={l.label}
+            aria-label={l.badge ? `${l.label} (${l.badge} sin leer)` : l.label}
             aria-current={l.active ? "page" : undefined}
-            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-bold whitespace-nowrap transition-colors sm:px-3 ${
+            className={`flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-bold whitespace-nowrap transition-colors sm:px-3 ${
               l.active ? "bg-white/10 text-white" : "text-ink-400 hover:text-white"
             }`}
           >
@@ -40,12 +40,20 @@ export function PanelNav({ email, unread }: { email: string; unread: number }) {
           </Link>
         ))}
         <div className="ml-auto flex items-center gap-1">
-          <Link href="/" target="_blank" className="hidden items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-ink-400 hover:text-white md:flex">
+          <Link
+            href="/"
+            target="_blank"
+            className="hidden items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-ink-400 hover:text-white md:flex"
+          >
             Ver web <ExternalLink className="size-3.5" />
           </Link>
           <span className="hidden max-w-[180px] truncate px-2 text-sm text-ink-400 lg:inline">{email}</span>
           <form action={signOut}>
-            <button type="submit" className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-ink-300 hover:bg-white/10 hover:text-white" title="Cerrar sesión">
+            <button
+              type="submit"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-ink-300 hover:bg-white/10 hover:text-white"
+              title="Cerrar sesión"
+            >
               <LogOut className="size-4" /> <span className="hidden sm:inline">Salir</span>
             </button>
           </form>

@@ -12,7 +12,7 @@ export function VideoSection() {
           <SectionHeading
             eyebrow="En acción"
             title="Mira cómo trabajamos"
-            intro="Con más de 15 años de experiencia, nuestros sistemas de impermeabilización con poliurea cumplen los mejores requisitos técnicos y suponen una auténtica revolución estética."
+            intro="Con más de 30 años de experiencia, nuestros sistemas de impermeabilización con poliurea cumplen los mejores requisitos técnicos y suponen una auténtica revolución estética."
           />
           <Reveal as="ul" className="mt-8 space-y-3">
             {["Maquinaria de proyección de última generación", "Equipos propios y personal cualificado", "Obras en toda España"].map((t) => (

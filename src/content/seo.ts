@@ -39,7 +39,7 @@ export const pageSeo = {
   empresa: {
     title: "Empresa",
     description:
-      "Aislaser es una empresa especializada en recubrimientos de última generación de poliureas y poliuretanos, con más de 15 años de experiencia y sede en Campanario (Badajoz).",
+      "Aislaser es una empresa especializada en recubrimientos de última generación de poliureas y poliuretanos, con más de 30 años de experiencia y sede en Campanario (Badajoz).",
   },
   servicios: {
     title: "Servicios",

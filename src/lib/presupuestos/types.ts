@@ -133,11 +133,16 @@ export function addDays(date: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-/** Texto escrito por el usuario → número (acepta coma decimal y puntos de miles) */
+/**
+ * Texto escrito por el usuario → número. La coma es el decimal y el punto, el separador de miles
+ * («1.500» son mil quinientos). Sin coma, un punto que no separa grupos de tres cifras se toma
+ * como decimal («24.90»), por si se escribe al estilo inglés.
+ */
 export function parseDecimal(text: string): number | null {
   const t = text.trim().replace(/\s/g, "");
   if (!t) return 0;
-  const normalized = t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
+  const thousands = /^-?\d{1,3}(\.\d{3})+$/.test(t);
+  const normalized = t.includes(",") || thousands ? t.replace(/\./g, "").replace(",", ".") : t;
   const n = Number(normalized);
   return Number.isFinite(n) ? n : null;
 }

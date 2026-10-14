@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Cpu, Medal, Users } from "lucide-react";
 import { Eyebrow, Mark } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
+import { company } from "@/content/company";
 
 const pillars = [
   {
@@ -13,7 +14,7 @@ const pillars = [
   {
     icon: Medal,
     title: "Experiencia",
-    text: "Más de 15 años dando soluciones a constructoras, industria, administraciones y particulares.",
+    text: "Más de 30 años dando soluciones a constructoras, industria, administraciones y particulares.",
   },
   {
     icon: Users,
@@ -46,7 +47,7 @@ export function Intro() {
             />
           </div>
           <div className="absolute top-8 right-[8%] rounded-2xl bg-ink-900 px-5 py-4 text-white shadow-xl">
-            <p className="font-display text-4xl leading-none font-bold text-laser-500">+15</p>
+            <p className="font-display text-4xl leading-none font-bold text-laser-500">{company.yearsExperience}</p>
             <p className="mt-1 text-xs font-bold tracking-wider text-ink-200 uppercase">años proyectando</p>
           </div>
         </Reveal>

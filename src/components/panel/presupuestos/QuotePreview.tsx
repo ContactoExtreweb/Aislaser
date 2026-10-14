@@ -86,25 +86,32 @@ export function QuotePreview({ quote, branding }: { quote: Quote; branding: Bran
             </button>
           </div>
         </div>
-        {(busy || error || warning) && (
-          <div className="mx-auto mt-3 max-w-5xl space-y-2">
-            {busy && (
-              <p className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-ink-800 shadow-sm">
-                <LoaderCircle className="size-4 animate-spin text-laser-600" /> {busy}
-              </p>
-            )}
-            {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">{error}</p>}
-            {warning && (
-              <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900" role="alert">
-                <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {warning}
-              </p>
-            )}
-          </div>
-        )}
+        <div className="mx-auto max-w-5xl space-y-2 [&:not(:empty)]:mt-3" role="status" aria-live="polite">
+          {busy && (
+            <p className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-ink-800 shadow-sm">
+              <LoaderCircle className="size-4 animate-spin text-laser-600" /> {busy}
+            </p>
+          )}
+          {error && (
+            <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700" role="alert">
+              {error}
+            </p>
+          )}
+          {warning && (
+            <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900" role="alert">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {warning}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Contenedor invisible donde se mide la altura real de cada bloque */}
-      <div aria-hidden="true" className="print:hidden" style={{ position: "absolute", left: -10000, top: 0, width: QUOTE_LAYOUT.contentW, visibility: "hidden" }} ref={measureRef}>
+      <div
+        aria-hidden="true"
+        className="print:hidden"
+        style={{ position: "absolute", left: -10000, top: 0, width: QUOTE_LAYOUT.contentW, visibility: "hidden" }}
+        ref={measureRef}
+      >
         {blocks.map((b) => (
           <div key={b.key} style={{ display: "flow-root" }}>
             <QuoteBlockView block={b} />

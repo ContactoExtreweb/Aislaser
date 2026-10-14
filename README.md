@@ -30,9 +30,10 @@ Comandos: `npm run build` · `npm start` · `npm run typecheck`.
    - Bucket de Storage `dossier-images` (fotos; lectura pública por URL, escritura sólo administradores).
    - Bucket **privado** `firmas` (sello y firma; sólo administradores, con URLs firmadas temporales).
    - `web_obras`, `web_fotos` y bucket público `galeria`: las obras que se enseñan en la web, gestionadas desde el panel.
+   - `presupuestos` y `presupuesto_partidas`: presupuestos del panel, numerados por año (2026-001…).
    - Seguridad RLS en todas las tablas. El script es idempotente (se puede repetir sin perder datos).
    - Si una ejecución anterior se quedó a medias, ejecuta `supabase/pendiente.sql` (es el script completo e idempotente: crea o repara todo).
-   - Migraciones sueltas: `002_informe_y_firma.sql` (formato informe, sello y firma), `003_proteger_mensajes.sql` (protección del formulario contra abusos) y `004_galeria_web.sql` (obras de la web gestionadas desde el panel).
+   - Migraciones sueltas: `002_informe_y_firma.sql` (formato informe, sello y firma), `003_proteger_mensajes.sql` (protección del formulario contra abusos), `004_galeria_web.sql` (obras de la web gestionadas desde el panel) y `005_presupuestos.sql` (presupuestos del panel y servicio de insuflado en las obras).
 3. **Authentication → Sign In / Providers → Email:** desactivar *Allow new users to sign up*.
 4. **Authentication → Users → Add user → Create new user:** email + contraseña del cliente, marcando *Auto Confirm User*.
 5. **SQL Editor:** ejecutar `supabase/add-admin.sql` cambiando el email por el del paso 4.
@@ -113,6 +114,14 @@ Flujo:
 9. Duplicar un documento para usarlo como plantilla, marcarlo como terminado, buscar y eliminar.
 10. **Mensajes:** solicitudes del formulario de contacto de la web, con marcar como leído.
 
+### Presupuestos (`/panel/presupuestos`)
+
+- **Nuevo presupuesto** (o **Hacer presupuesto** desde un mensaje de la web, que copia los datos del cliente y su mensaje en las notas internas).
+- Partidas con unidad, cantidad y precio; los **capítulos** agrupan las partidas que van debajo y muestran su total. **Partidas frecuentes** añade descripciones habituales de Aislaser.
+- Descuento global, IVA (21 %, 10 %, 4 % o 0 %), validez y estado (borrador, enviado, aceptado o rechazado). Todo se guarda solo.
+- **Vista previa y PDF**: con el membrete de Aislaser, la tabla de partidas, los totales, las condiciones, el sello y la firma, y un recuadro para el «conforme» del cliente.
+- Las condiciones de los presupuestos nuevos se cambian en **Ajustes**.
+
 ### Obras de la web (`/panel/obras`)
 
 Las obras que se ven en la web (página *Obras*, portada y obras relacionadas de cada servicio) se gestionan desde el panel, sin tocar código ni volver a desplegar:
@@ -134,6 +143,5 @@ Sólo importa si la galería está vacía (crea todas las obras de una vez y las
 
 ## 6. Pendiente de revisar con el cliente
 
-- Confirmar los años de experiencia (la web anterior decía "más de 15 años" en 2019) en `src/content/company.ts`.
 - Revisar la clasificación por sector y ubicación de cada obra (ahora desde el panel, en *Obras web*).
 - Si se dispone de fotos de mayor resolución, subirlas desde *Obras web* (las de la web anterior son de 720 px).
