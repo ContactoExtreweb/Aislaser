@@ -73,11 +73,17 @@ export function hydrateQuote(row: Record<string, unknown>, lines: Record<string,
 /*  Importes (en céntimos para no arrastrar errores de redondeo)       */
 /* ------------------------------------------------------------------ */
 
-const cents = (euros: number) => Math.round((euros + Number.EPSILON) * 100);
+/** Redondeo «comercial»: los medios se alejan del cero (así una partida y su abono se anulan) */
+const roundHalfAway = (x: number) => Math.sign(x) * Math.round(Math.abs(x));
+
+const cents = (euros: number) => roundHalfAway(euros * 100 + Math.sign(euros) * 1e-9);
 
 /** Importe de una partida: cantidad × precio, redondeado al céntimo */
 export const lineCents = (l: Pick<QuoteLine, "tipo" | "cantidad" | "precio">) =>
-  l.tipo === "capitulo" ? 0 : Math.round(Math.round(l.cantidad * 1000) * cents(l.precio) / 1000);
+  l.tipo === "capitulo" ? 0 : roundHalfAway((Math.round(l.cantidad * 1000) * cents(l.precio)) / 1000);
+
+/** ¿Sale la línea en el documento? (las partidas sin descripción ni precio se quedan fuera) */
+export const isPrintable = (l: Pick<QuoteLine, "tipo" | "descripcion" | "precio">) => l.tipo === "capitulo" || l.descripcion.trim() !== "" || l.precio !== 0;
 
 export type Totals = {
   /** Suma de las partidas */
@@ -107,9 +113,9 @@ export function quoteTotals(q: Pick<Quote, "lineas" | "iva" | "descuento">): Tot
     subtotal += c;
     if (current) chapters[current] += c;
   }
-  const discount = Math.round((subtotal * q.descuento) / 100);
+  const discount = roundHalfAway((subtotal * q.descuento) / 100);
   const base = subtotal - discount;
-  const tax = Math.round((base * q.iva) / 100);
+  const tax = roundHalfAway((base * q.iva) / 100);
   return { subtotal, discount, base, tax, total: base + tax, chapters };
 }
 
@@ -133,6 +139,9 @@ export function addDays(date: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
+/** «1.500» o «12.375»: un punto que separa grupos de tres cifras (no «0.500», que es medio) */
+export const looksLikeThousands = (text: string) => /^-?[1-9]\d{0,2}(\.\d{3})+$/.test(text.trim().replace(/\s/g, ""));
+
 /**
  * Texto escrito por el usuario → número. La coma es el decimal y el punto, el separador de miles
  * («1.500» son mil quinientos). Sin coma, un punto que no separa grupos de tres cifras se toma
@@ -141,7 +150,7 @@ export function addDays(date: string, days: number) {
 export function parseDecimal(text: string): number | null {
   const t = text.trim().replace(/\s/g, "");
   if (!t) return 0;
-  const thousands = /^-?\d{1,3}(\.\d{3})+$/.test(t);
+  const thousands = looksLikeThousands(t);
   const normalized = t.includes(",") || thousands ? t.replace(/\./g, "").replace(",", ".") : t;
   const n = Number(normalized);
   return Number.isFinite(n) ? n : null;

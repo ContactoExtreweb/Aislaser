@@ -12,7 +12,7 @@ const jsonLd = {
   description: company.description,
   url: siteUrl,
   logo: `${siteUrl}/brand/aislaser-logo.svg`,
-  image: `${siteUrl}/og.jpg`,
+  image: `${siteUrl}/og.jpg?v=30`,
   telephone: "+34609005163",
   faxNumber: "+34924851823",
   taxID: company.cif,

@@ -44,6 +44,7 @@ export function QuotePreview({ quote, branding }: { quote: Quote; branding: Bran
   }, []);
 
   const totalPages = pages?.length ?? 0;
+  const overflow = pages?.some((p) => p.some((b) => b.overflow));
   const number = quoteNumber(quote);
   const baseName = `presupuesto-${number}${quote.cliente_nombre ? `-${slugify(quote.cliente_nombre)}` : ""}`;
 
@@ -95,6 +96,12 @@ export function QuotePreview({ quote, branding }: { quote: Quote; branding: Bran
           {error && (
             <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700" role="alert">
               {error}
+            </p>
+          )}
+          {overflow && (
+            <p className="flex items-start gap-2 rounded-xl bg-laser-500/15 px-4 py-2.5 text-sm font-semibold text-ink-800">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" /> Hay un texto tan largo que no cabe en una hoja y se cortaría. Divídelo en varias
+              líneas (pulsando Intro) o en varias partidas.
             </p>
           )}
           {warning && (

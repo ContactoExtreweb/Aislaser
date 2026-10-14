@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   keywords: siteKeywords,
   openGraph: {
     ...baseOpenGraph,
-    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "Aislaser · Impermeabilización con poliurea" }],
+    images: [{ url: "/og.jpg?v=30", width: 1200, height: 630, alt: "Aislaser · Impermeabilización con poliurea" }],
   },
   twitter: { card: "summary_large_image" },
   formatDetection: { telephone: false },

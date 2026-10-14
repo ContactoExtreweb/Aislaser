@@ -2,12 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { company } from "@/content/company";
+import { services } from "@/content/services";
 import type { Project } from "@/content/projects";
 
 const stats = [
   { value: company.yearsExperience, label: "años de experiencia" },
   { value: "+30", label: "obras de referencia" },
-  { value: "6", label: "especialidades técnicas" },
+  { value: String(services.length), label: "especialidades técnicas" },
   { value: "0", label: "mantenimiento con poliurea" },
 ];
 

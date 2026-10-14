@@ -1,13 +1,27 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play, ShieldCheck, Timer, Waves } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { STAGES } from "./roof3d/timeline";
 
 // Three.js sólo se descarga cuando la sección está a punto de verse
 const RoofScene = dynamic(() => import("./roof3d/RoofScene"), { ssr: false });
+
+const NO_WEBGL = "Tu navegador no puede mostrar la animación 3D.";
+
+/** Si la escena falla (GPU, controladores, memoria…), se ve el aviso en vez de romper la portada */
+class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) return <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm font-bold text-ink-700">{NO_WEBGL}</div>;
+    return this.props.children;
+  }
+}
 
 const FACTS = [
   { icon: Waves, text: "Membrana continua, sin juntas ni solapes" },
@@ -21,7 +35,10 @@ const STILL_TIME = 34;
 function webglAvailable() {
   try {
     const c = document.createElement("canvas");
-    return Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
+    // three.js ya no funciona con WebGL 1 (desde r163): sin WebGL 2 se enseña el aviso
+    const gl = c.getContext("webgl2");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+    return Boolean(gl);
   } catch {
     return false;
   }
@@ -46,7 +63,11 @@ export function RoofSystemSection() {
   const [small, setSmall] = useState(false);
 
   useEffect(() => {
-    setSmall(window.innerWidth < 768);
+    // Mismo corte que el CSS (sm = 640 px): por debajo el rótulo va fuera de la escena y no hace falta apartar el edificio
+    const narrow = window.matchMedia("(max-width: 639px)");
+    setSmall(narrow.matches);
+    const onNarrow = () => setSmall(narrow.matches);
+    narrow.addEventListener("change", onNarrow);
     setReady(webglAvailable() ? "ok" : "no-webgl");
     // Con «reducir movimiento» se enseña quieta (la muestra capa a capa); se puede reproducir con el botón
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -79,6 +100,7 @@ export function RoofSystemSection() {
     const onVisibility = () => setVisible(onScreen && !document.hidden);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      narrow.removeEventListener("change", onNarrow);
       loader.disconnect();
       viewer.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
@@ -146,29 +168,25 @@ export function RoofSystemSection() {
 
           <div ref={card} className="relative aspect-[4/5] w-full sm:aspect-[16/11] lg:aspect-[16/9]">
             {ready === "ok" && near ? (
-              <RoofScene
-                playingRef={playingRef}
-                playing={playing}
-                seekRef={seekRef}
-                seekTick={seekTick}
-                onStage={onStage}
-                active={visible}
-                small={small}
-              />
+              <SceneBoundary>
+                <RoofScene playingRef={playingRef} playing={playing} seekRef={seekRef} seekTick={seekTick} onStage={onStage} active={visible} small={small} />
+              </SceneBoundary>
             ) : (
-              <div className="absolute inset-0 grid place-items-center text-sm font-bold text-ink-500">
-                {ready === "no-webgl" ? "Tu navegador no puede mostrar la animación 3D." : "Cargando la animación 3D…"}
+              <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm font-bold text-ink-700">
+                {ready === "no-webgl" ? NO_WEBGL : "Cargando la animación 3D…"}
               </div>
             )}
             <p className="sr-only">
-              Animación en 3D de una cubierta en sección: primero llueve y el agua se filtra por las fisuras; después se prepara el
-              soporte, se aplica la imprimación, se proyecta la poliurea en caliente formando una membrana continua que sube por
-              petos y lucernario, se aplica el acabado de protección UV y, al volver a llover, el agua corre hacia el sumidero sin
-              filtrarse. Al final se ven las capas del sistema por separado.
+              Animación en 3D de una cubierta en sección: primero llueve y el agua se filtra por las fisuras; después se prepara el soporte, se aplica la
+              imprimación, se proyecta la poliurea en caliente formando una membrana continua que sube por petos y lucernario, se aplica el acabado de
+              protección UV y, al volver a llover, el agua corre hacia el sumidero sin filtrarse. Al final se ven las capas del sistema por separado.
             </p>
 
             {/* Rótulo del paso actual (en pantallas grandes, sobre la escena) */}
-            <div className="pointer-events-none absolute top-5 left-5 hidden max-w-sm rounded-2xl bg-white/85 p-5 shadow-[0_20px_40px_-25px_rgb(0_0_0/0.5)] backdrop-blur-md sm:block" aria-live="polite">
+            <div
+              className="pointer-events-none absolute top-5 left-5 hidden max-w-sm rounded-2xl bg-white/85 p-5 shadow-[0_20px_40px_-25px_rgb(0_0_0/0.5)] backdrop-blur-md sm:block"
+              aria-live={playing ? "off" : "polite"}
+            >
               <p className="text-xs font-extrabold tracking-[0.2em] text-laser-700 uppercase">
                 Paso {stage + 1} de {STAGES.length}
               </p>
@@ -189,7 +207,7 @@ export function RoofSystemSection() {
 
           {/* Pasos: se puede saltar a cualquiera; la barra avanza con la animación */}
           <div className="relative border-t border-ink-200/70 bg-white/80 backdrop-blur-md">
-            <div className="p-5 sm:hidden" aria-live="polite">
+            <div className="p-5 sm:hidden" aria-live={playing ? "off" : "polite"}>
               <p className="text-xs font-extrabold tracking-[0.2em] text-laser-700 uppercase">
                 Paso {stage + 1} de {STAGES.length}
               </p>

@@ -167,19 +167,23 @@
 
 ### Pendiente
 
-1. **Revisión adversarial pendiente.** El límite de uso cortó dos intentos. Falta revisar:
-   - corrección de los presupuestos (SQL, importes, paginación, autoguardado);
-   - insuflado, SEO y regresiones de los refactors (informes y dosieres siguen saliendo igual);
-   - los 29 hallazgos sin verificar de la sección 3D, que están en `hallazgos-3d.jsonl` en el scratchpad. Si no está, repetir la revisión de la sección. Los más relevantes:
-     - con solo WebGL 1 se cae la portada; falta un error boundary;
-     - `aria-live` anuncia cada paso en bucle;
-     - `small` se calcula con 768 px y el CSS usa 640 px;
-     - re-render de la escena en cada cambio de paso (`React.memo`);
-     - las texturas generadas bloquean el hilo principal unos 1,5 s.
+1. **Revisión de la sección 3D, rendimiento pendiente.** Los presupuestos, el insuflado, el SEO y lo grave de la 3D ya están revisados y corregidos:
+   - con WebGL 1 se muestra el aviso, con un error boundary;
+   - `aria-live` está apagado mientras la animación se reproduce sola;
+   - el corte es de 640 px;
+   - la escena va con `React.memo`.
 
-   Lo de accesibilidad y móvil de los presupuestos ya está revisado y corregido.
-2. **Palabras clave del cliente para el SEO:** aún no las ha enviado. Repartirlas en `src/content/seo.ts`, en el campo `seo` de cada servicio y en los H1 y textos.
-3. **Cierre:**
+   De los 29 hallazgos de la 3D (`hallazgos-3d.jsonl` en el scratchpad) quedan los de rendimiento:
+   - las texturas generadas bloquean unos 1,5 s al acercarse;
+   - la muestra regenera texturas que ya existen;
+   - las mangueras se reconstruyen en cada fotograma;
+   - las máscaras de cobertura se suben enteras cada fotograma;
+   - sobran unas 38 llamadas de dibujo.
+
+   Ninguno rompe nada; son mejoras.
+2. **Migración 006** (`supabase/migrations/006_numeracion_presupuestos.sql`): el usuario tiene que ejecutarla en Supabase. Sin ella todo funciona, pero borrar el último presupuesto del año hace que su número se vuelva a usar.
+3. **Palabras clave del cliente para el SEO:** aún no las ha enviado. Repartirlas en `src/content/seo.ts`, en el campo `seo` de cada servicio y en los H1 y textos.
+4. **Cierre:**
    - Borrar este documento.
    - Commit y push a la rama y a `main`.
    - Comprobar en https://aislaser.netlify.app.

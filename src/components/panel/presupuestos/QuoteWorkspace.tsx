@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
@@ -28,7 +29,9 @@ import {
   addDays,
   formatEuros,
   formatPercent,
+  isPrintable,
   lineCents,
+  looksLikeThousands,
   parseDecimal,
   quoteNumber,
   quoteTotals,
@@ -53,6 +56,13 @@ export function QuoteWorkspace({ initial, brandingSource }: { initial: Quote; br
   const api = useQuoteEditor(initial);
   const { quote, save } = api;
   const branding = useBranding(brandingSource);
+  const router = useRouter();
+
+  // Si al salir quedaron cambios sin guardar, la página puede venir de la caché: se piden los datos reales
+  const { stale } = api;
+  useEffect(() => {
+    if (stale) router.refresh();
+  }, [stale, router]);
   const [tab, setTab] = useState<"editar" | "vista">("editar");
   const [sessionLost, setSessionLost] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -275,6 +285,7 @@ function NumberField({
   labelClassName = "text-sm font-bold text-ink-800",
   ariaLabel,
   decimals,
+  maxDecimals,
 }: {
   value: number;
   onChange: (n: number) => void;
@@ -289,8 +300,12 @@ function NumberField({
   ariaLabel?: string;
   /** Decimales fijos al mostrarlo (el precio, con dos: 24,90); también es el máximo que se admite */
   decimals?: number;
+  /** Máximo de decimales que se admiten (sin fijarlos al mostrarlo); por defecto, los de «decimals» */
+  maxDecimals?: number;
 }) {
   const errorId = useId();
+  const justFocused = useRef(false);
+  const allowed = maxDecimals ?? decimals;
   const format = (n: number) => (decimals === undefined ? String(n) : n.toFixed(decimals)).replace(".", ",");
   const [text, setText] = useState(format(value));
   const [focused, setFocused] = useState(false);
@@ -300,10 +315,13 @@ function NumberField({
     if (n === null) return "Escribe un número (con coma para los decimales).";
     if (min !== undefined && n < min) return max !== undefined ? `Entre ${format(min)} y ${format(max)}.` : `Como mínimo ${format(min)}.`;
     if (max !== undefined && n > max) return min !== undefined ? `Entre ${format(min)} y ${format(max)}.` : `Como máximo ${format(max)}.`;
-    if (decimals !== undefined && Math.abs(n * 10 ** decimals - Math.round(n * 10 ** decimals)) > 1e-6) return `Como mucho ${decimals} decimales.`;
+    if (allowed !== undefined && Math.abs(n * 10 ** allowed - Math.round(n * 10 ** allowed)) > 1e-6)
+      return allowed === 0 ? "Sin decimales." : `Como mucho ${allowed} ${allowed === 1 ? "decimal" : "decimales"}.`;
     return null;
   };
   const invalid = focused ? problem(text) : null;
+  // «1.500» se lee como mil quinientos: se dice, por si se quería escribir un decimal con punto
+  const note = focused && !invalid && looksLikeThousands(text) ? `Leído como ${format(parseDecimal(text)!)}. Los decimales van con coma.` : null;
   return (
     <label className={`block ${className}`}>
       <span className={labelClassName}>{label}</span>
@@ -313,13 +331,18 @@ function NumberField({
           aria-label={ariaLabel}
           value={shown}
           aria-invalid={invalid ? true : undefined}
-          aria-describedby={invalid ? errorId : undefined}
+          aria-describedby={invalid || note ? errorId : undefined}
           onFocus={(e) => {
             setText(format(value));
             setFocused(true);
             // Seleccionado entero: lo que se escribe sustituye al valor («0,00» → «25»)
-            const input = e.currentTarget;
-            requestAnimationFrame(() => input.select());
+            e.currentTarget.select();
+            justFocused.current = true;
+          }}
+          // El clic que da el foco no debe deshacer la selección al soltar el botón
+          onMouseUp={(e) => {
+            if (justFocused.current) e.preventDefault();
+            justFocused.current = false;
           }}
           onBlur={() => setFocused(false)}
           onChange={(e) => {
@@ -338,9 +361,9 @@ function NumberField({
           </span>
         )}
       </span>
-      {invalid && (
-        <span id={errorId} className="mt-1 block text-xs font-semibold text-red-600">
-          {invalid}
+      {(invalid || note) && (
+        <span id={errorId} className={`mt-1 block text-xs font-semibold ${invalid ? "text-red-600" : "text-ink-600"}`}>
+          {invalid ?? note}
         </span>
       )}
     </label>
@@ -407,6 +430,7 @@ function DetailsCard({ api }: { api: Editor }) {
           suffix="%"
           min={0}
           max={100}
+          maxDecimals={2}
           className="sm:col-span-1"
         />
       </div>
@@ -416,6 +440,7 @@ function DetailsCard({ api }: { api: Editor }) {
 
 /* ------------------------------------ Partidas ------------------------------------ */
 
+/** Misma numeración que el documento: las partidas vacías no salen en él y no se numeran */
 function lineNumbers(lines: QuoteLine[]) {
   const out: Record<string, string> = {};
   let chapter = 0;
@@ -425,6 +450,8 @@ function lineNumbers(lines: QuoteLine[]) {
       chapter += 1;
       item = 0;
       out[l.id] = String(chapter);
+    } else if (!isPrintable(l)) {
+      out[l.id] = "–";
     } else {
       item += 1;
       out[l.id] = chapter ? `${chapter}.${item}` : String(item);
@@ -644,6 +671,9 @@ function LineRow({ line, number, index, total, api }: { line: QuoteLine; number:
           labelClassName={tinyLabel}
           value={line.cantidad}
           onChange={(n) => api.setLine(line.id, "cantidad", n)}
+          maxDecimals={3}
+          min={-999999999}
+          max={999999999}
           inputClassName={cellInput}
           className="w-28"
         />
@@ -655,9 +685,12 @@ function LineRow({ line, number, index, total, api }: { line: QuoteLine; number:
           onChange={(n) => api.setLine(line.id, "precio", n)}
           suffix="€"
           decimals={2}
+          min={-999999999}
+          max={999999999}
           inputClassName={cellInput}
           className="w-32"
         />
+        {!isPrintable(line) && <p className="w-full text-xs font-semibold text-ink-500 sm:order-last">Vacía: no sale en el presupuesto hasta que tenga descripción o precio.</p>}
         <p className="ml-auto pb-2 text-right">
           <span className={`${tinyLabel} !mb-0.5`}>Importe</span>
           <span className="font-display text-xl font-bold text-ink-900 tabular-nums">{formatEuros(lineCents(line))}</span>

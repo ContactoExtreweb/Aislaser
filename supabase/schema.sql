@@ -615,11 +615,44 @@ alter table public.web_obras add constraint web_obras_servicios_validos check (
                      'refuerzo-de-estructuras', 'anclajes-inyecciones-y-chorreado']::text[]
 );
 
+-- ---------------------------------------------------------------------
+-- Migración 006 incluida: numeración de presupuestos que nunca retrocede
+-- ---------------------------------------------------------------------
+create table if not exists public.presupuesto_contadores (
+  anio   integer primary key,
+  ultimo integer not null default 0
+);
+
+-- Sin políticas: sólo lo usa la función de numeración (que se ejecuta como su propietario)
+alter table public.presupuesto_contadores enable row level security;
+
+-- Arranca desde los números ya usados
+insert into public.presupuesto_contadores (anio, ultimo)
+select anio, max(numero) from public.presupuestos group by anio
+on conflict (anio) do update set ultimo = greatest(public.presupuesto_contadores.ultimo, excluded.ultimo);
+
+create or replace function public.numerar_presupuesto()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.anio := extract(year from coalesce(new.fecha, (now() at time zone 'Europe/Madrid')::date))::integer;
+  -- La fila del año queda bloqueada hasta el final de la transacción: dos altas a la vez no comparten número
+  insert into public.presupuesto_contadores as c (anio, ultimo)
+  values (new.anio, coalesce((select max(numero) from public.presupuestos where anio = new.anio), 0) + 1)
+  on conflict (anio) do update set ultimo = c.ultimo + 1
+  returning ultimo into new.numero;
+  return new;
+end;
+$$;
+
 -- =====================================================================
 --  COMPROBACIÓN FINAL (si no ves este resultado, el script no se pegó entero)
 --  Debe mostrar:
 --    tablas  → admin_users, app_settings, contact_messages, dossier_images, dossier_points, dossiers,
---              presupuesto_partidas, presupuestos, web_fotos, web_obras
+--              presupuesto_contadores, presupuesto_partidas, presupuestos, web_fotos, web_obras
 --    buckets → dossier-images (público), firmas (privado), galeria (público)
 -- =====================================================================
 select 'tablas' as comprobacion,
@@ -627,7 +660,7 @@ select 'tablas' as comprobacion,
   from information_schema.tables
  where table_schema = 'public'
    and table_name in ('admin_users', 'dossiers', 'dossier_points', 'dossier_images', 'contact_messages', 'app_settings',
-                      'web_obras', 'web_fotos', 'presupuestos', 'presupuesto_partidas')
+                      'web_obras', 'web_fotos', 'presupuestos', 'presupuesto_partidas', 'presupuesto_contadores')
 union all
 select 'buckets',
        string_agg(id || case when public then ' (público)' else ' (privado)' end, ', ' order by id)

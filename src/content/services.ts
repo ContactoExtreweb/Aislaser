@@ -142,20 +142,20 @@ export const services: Service[] = [
     title: "Aislamiento por insuflado en cámaras de aire",
     summary: "Rellenamos la cámara de aire de fachadas y techos con aislante, sin obras y en muy poco tiempo.",
     intro: [
-      "El insuflado es la forma más rápida y limpia de aislar un edificio que ya está construido. Muchas fachadas de ladrillo tienen dos hojas separadas por una cámara de aire que está vacía: por ahí se escapa el calor en invierno y entra en verano. Nosotros la rellenamos con material aislante, que introducimos a presión a través de pequeños taladros.",
-      "No hay que levantar paredes, mover muebles ni salir de casa. Se trabaja desde fuera (o desde dentro, si conviene) y una vivienda suele quedar terminada en una o dos jornadas. El cambio se nota desde el primer día: paredes menos frías, menos condensaciones y una factura de calefacción y aire acondicionado más baja.",
+      "El insuflado es una de las formas más rápidas y limpias de aislar un edificio que ya está construido. Muchas fachadas de ladrillo tienen dos hojas separadas por una cámara de aire vacía, que aísla muy poco: en invierno se pierde calor a través del muro y en verano entra. Nosotros rellenamos esa cámara con material aislante, que introducimos a presión a través de pequeños taladros.",
+      "No hay obras de albañilería ni hace falta salir de casa. Normalmente se trabaja desde fuera, sin tocar nada por dentro, y una vivienda suele quedar terminada en una o dos jornadas. El cambio se nota desde el primer día: paredes menos frías, menos condensaciones y una factura de calefacción y aire acondicionado más baja.",
       "Antes de insuflar revisamos la cámara (anchura, continuidad y humedad) y elegimos el material más adecuado para cada caso: lana mineral, perlas de poliestireno expandido con grafito (EPS) o espuma de poliuretano.",
     ],
     image: "/images/site/insuflado-fachada.webp",
     gallery: [],
     icon: "wind",
     features: [
-      "Sin obras, sin escombros y sin salir de casa",
+      "Sin obras de albañilería ni escombros, y sin salir de casa",
       "Una vivienda suele quedar lista en una o dos jornadas",
       "Mejora el aislamiento térmico y acústico",
       "Paredes menos frías y menos condensaciones",
       "Ahorro en calefacción y aire acondicionado",
-      "Relleno completo de la cámara, sin huecos",
+      "Relleno homogéneo de toda la cámara",
       "Mejora la calificación energética del edificio",
       "Taladros pequeños que se sellan y apenas se notan",
     ],
@@ -178,11 +178,11 @@ export const services: Service[] = [
       },
       {
         title: "Insuflamos el aislante",
-        text: "Con máquina y a presión controlada, de abajo arriba, hasta llenar la cámara por completo y sin dejar huecos.",
+        text: "Con máquina y a presión controlada, de abajo arriba, hasta llenar la cámara y comprobando que el aislante llega a toda ella.",
       },
       {
         title: "Sellamos y comprobamos",
-        text: "Cerramos los taladros con mortero de un tono parecido a la fachada y, si se desea, verificamos el resultado con termografía.",
+        text: "Cerramos los taladros con mortero de un tono parecido a la fachada y, si se desea, comprobamos el resultado con cámara termográfica.",
       },
     ],
     diagram: {
@@ -190,9 +190,9 @@ export const services: Service[] = [
       alt: "Ilustración de una fachada de ladrillo en corte: la cámara de aire entre las dos hojas se rellena de aislante a través de pequeños taladros en las juntas.",
       parts: [
         { x: 40.6, y: 71.2, label: "Hoja exterior de ladrillo" },
-        { x: 72.1, y: 25.5, label: "Cámara de aire vacía: por aquí se escapa el calor" },
+        { x: 72.1, y: 25.5, label: "Cámara de aire vacía: aísla muy poco" },
         { x: 72.1, y: 60.1, label: "Aislante insuflado, que rellena la cámara de abajo arriba" },
-        { x: 75.7, y: 39.9, label: "Hoja interior y enlucido: por dentro no se toca nada" },
+        { x: 75.7, y: 39.9, label: "Hoja interior y enlucido: normalmente no se toca" },
         { x: 48.8, y: 32.4, label: "Taladros en las juntas, al tresbolillo" },
         { x: 60.9, y: 57.2, label: "Boquilla de insuflado" },
         { x: 26.3, y: 32.4, label: "Taladros ya sellados con mortero" },
@@ -205,7 +205,7 @@ export const services: Service[] = [
       },
       {
         q: "¿Hay que hacer obras o salir de casa?",
-        a: "No. Se trabaja a través de taladros pequeños, sin levantar paredes ni mover muebles, y puedes seguir en casa mientras trabajamos.",
+        a: "No hay obras de albañilería: normalmente se trabaja desde fuera, con taladros pequeños, sin levantar paredes ni mover muebles, y puedes seguir en casa mientras trabajamos. En un bloque de pisos la fachada es de la comunidad, así que hace falta su acuerdo; te ayudamos con los trámites.",
       },
       {
         q: "¿Cuánto se tarda?",

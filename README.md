@@ -33,7 +33,7 @@ Comandos: `npm run build` · `npm start` · `npm run typecheck`.
    - `presupuestos` y `presupuesto_partidas`: presupuestos del panel, numerados por año (2026-001…).
    - Seguridad RLS en todas las tablas. El script es idempotente (se puede repetir sin perder datos).
    - Si una ejecución anterior se quedó a medias, ejecuta `supabase/pendiente.sql` (es el script completo e idempotente: crea o repara todo).
-   - Migraciones sueltas: `002_informe_y_firma.sql` (formato informe, sello y firma), `003_proteger_mensajes.sql` (protección del formulario contra abusos), `004_galeria_web.sql` (obras de la web gestionadas desde el panel) y `005_presupuestos.sql` (presupuestos del panel y servicio de insuflado en las obras).
+   - Migraciones sueltas: `002_informe_y_firma.sql` (formato informe, sello y firma), `003_proteger_mensajes.sql` (protección del formulario contra abusos), `004_galeria_web.sql` (obras de la web gestionadas desde el panel), `005_presupuestos.sql` (presupuestos del panel y servicio de insuflado en las obras) y `006_numeracion_presupuestos.sql` (la numeración de los presupuestos nunca repite un número, aunque se borre el último).
 3. **Authentication → Sign In / Providers → Email:** desactivar *Allow new users to sign up*.
 4. **Authentication → Users → Add user → Create new user:** email + contraseña del cliente, marcando *Auto Confirm User*.
 5. **SQL Editor:** ejecutar `supabase/add-admin.sql` cambiando el email por el del paso 4.

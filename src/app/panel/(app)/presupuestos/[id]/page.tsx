@@ -24,5 +24,5 @@ export default async function EditQuotePage({ params }: PageProps<"/panel/presup
   ]);
   if (!quote) notFound();
 
-  return <QuoteWorkspace key={quote.id} initial={hydrateQuote(quote, lines ?? [])} brandingSource={source} />;
+  return <QuoteWorkspace key={`${quote.id}:${quote.updated_at}`} initial={hydrateQuote(quote, lines ?? [])} brandingSource={source} />;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { LINE_COLUMNS, type LineFields, type Quote, type QuoteFields, type QuoteLine } from "@/lib/presupuestos/types";
 import { useSaveQueue } from "./useSaveQueue";
@@ -17,13 +17,23 @@ function expectRows({ data, error }: { data: unknown[] | null; error: { message:
  * reutiliza la página cacheada con datos antiguos y la siguiente edición los machacaría.
  * Se reutiliza sólo si el servidor trae exactamente los datos con los que se abrió.
  */
-const latestById = new Map<string, { quote: Quote; seededFrom: string }>();
+const latestById = new Map<string, { quote: Quote; seededFrom: string; dirty: boolean }>();
 
+/**
+ * Hay cambios hechos en el editor desde la última vez que se cargó el listado: al volver a él
+ * (también con «Atrás», que reutiliza la página guardada) se piden los datos de nuevo.
+ */
+export const quoteChanges = { pending: false };
+
+/**
+ * La copia local sólo se reutiliza si todo lo que tenía se llegó a guardar. Si quedaron cambios
+ * sin guardar, manda el servidor (y `stale` pide recargar por si la página venía de la caché).
+ */
 function initialState(initial: Quote) {
   const cached = latestById.get(initial.id);
-  if (cached && cached.seededFrom === initial.updated_at) return cached.quote;
-  latestById.set(initial.id, { quote: initial, seededFrom: initial.updated_at });
-  return initial;
+  if (cached && cached.seededFrom === initial.updated_at && !cached.dirty) return { quote: cached.quote, stale: false };
+  latestById.set(initial.id, { quote: initial, seededFrom: initial.updated_at, dirty: false });
+  return { quote: initial, stale: Boolean(cached?.dirty) };
 }
 
 const toLine = (row: Record<string, unknown>): QuoteLine => ({
@@ -35,16 +45,25 @@ const toLine = (row: Record<string, unknown>): QuoteLine => ({
 export function useQuoteEditor(initial: Quote) {
   const supabase = useMemo(() => getSupabaseBrowser(), []);
   const queue = useSaveQueue();
-  const { runKeyed, debounce, attempt, cancel } = queue;
-  const [quote, setQuote] = useState<Quote>(() => initialState(initial));
+  const { runKeyed, debounce, attempt, cancel, flushPrefix } = queue;
+  const [start] = useState(() => initialState(initial));
+  const [quote, setQuote] = useState<Quote>(start.quote);
   const quoteRef = useRef(quote);
   const seededFrom = useRef(latestById.get(initial.id)?.seededFrom ?? initial.updated_at);
 
   const apply = useCallback((fn: (q: Quote) => Quote) => {
     quoteRef.current = fn(quoteRef.current);
-    latestById.set(quoteRef.current.id, { quote: quoteRef.current, seededFrom: seededFrom.current });
+    latestById.set(quoteRef.current.id, { quote: quoteRef.current, seededFrom: seededFrom.current, dirty: true });
+    quoteChanges.pending = true;
     setQuote(quoteRef.current);
   }, []);
+
+  // Con todo guardado, la copia local ya es fiable
+  const { pending, failed } = queue.save;
+  useEffect(() => {
+    const entry = latestById.get(initial.id);
+    if (entry && pending === 0 && failed === 0) entry.dirty = false;
+  }, [initial.id, pending, failed, quote]);
 
   const setField = useCallback(
     <K extends keyof QuoteFields>(field: K, value: QuoteFields[K]) => {
@@ -121,20 +140,29 @@ export function useQuoteEditor(initial: Quote) {
 
   const deleteLine = useCallback(
     async (id: string) => {
-      const before = quoteRef.current.lineas;
-      cancel(`line.${id}.`);
+      // Lo que quedaba por guardar de esta partida se guarda antes: si el borrado falla, no se pierde
+      await flushPrefix(`line.${id}.`);
+      const index = quoteRef.current.lineas.findIndex((l) => l.id === id);
+      const removed = quoteRef.current.lineas[index];
+      if (!removed) return;
       apply((q) => ({ ...q, lineas: q.lineas.filter((l) => l.id !== id) }));
       const result = await attempt(async () => {
         const { error } = await supabase.from("presupuesto_partidas").delete().eq("id", id);
         if (error) throw new Error(error.message);
       });
       if (!result.ok) {
-        apply((q) => ({ ...q, lineas: before }));
+        // Vuelve sólo esa partida, en su sitio, sin deshacer lo que se haya hecho mientras tanto
+        apply((q) => {
+          const lines = [...q.lineas];
+          lines.splice(Math.min(index, lines.length), 0, removed);
+          return { ...q, lineas: lines };
+        });
         return;
       }
+      cancel(`line.${id}.`);
       commitOrder(quoteRef.current.lineas);
     },
-    [apply, attempt, cancel, commitOrder, supabase],
+    [apply, attempt, cancel, commitOrder, flushPrefix, supabase],
   );
 
   const moveLine = useCallback(
@@ -149,5 +177,5 @@ export function useQuoteEditor(initial: Quote) {
     [commitOrder],
   );
 
-  return { quote, save: queue.save, retryAll: queue.retryAll, setField, setLine, addLine, duplicateLine, deleteLine, moveLine };
+  return { quote, stale: start.stale, save: queue.save, retryAll: queue.retryAll, setField, setLine, addLine, duplicateLine, deleteLine, moveLine };
 }

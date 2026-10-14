@@ -143,6 +143,16 @@ export function useSaveQueue() {
     });
   }, []);
 
+  /** Guarda ya lo pendiente de unas claves y espera a que termine (salga bien o mal) */
+  const flushPrefix = useCallback(async (prefix: string) => {
+    timers.current.forEach(({ timer, run }, key) => {
+      if (!key.startsWith(prefix)) return;
+      clearTimeout(timer);
+      run();
+    });
+    await Promise.all([...chains.current.entries()].filter(([key]) => key.startsWith(prefix)).map(([, chain]) => chain));
+  }, []);
+
   const busyRef = useRef(false);
   busyRef.current = running > 0 || scheduled > 0 || failedCount > 0;
 
@@ -182,5 +192,5 @@ export function useSaveQueue() {
   }, [flush]);
 
   const save: SaveState = { pending: running + scheduled, failed: failedCount, error: lastError };
-  return { save, runKeyed, debounce, attempt, cancel, flush, retryAll };
+  return { save, runKeyed, debounce, attempt, cancel, flush, flushPrefix, retryAll };
 }

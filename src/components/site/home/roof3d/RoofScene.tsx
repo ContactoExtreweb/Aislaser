@@ -2,7 +2,7 @@
 
 import { ContactShadows, Environment, Lightformer, PerformanceMonitor } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import * as THREE from "three";
 import { Building } from "./Building";
 import { Deck } from "./Deck";
@@ -169,7 +169,9 @@ function Lights({ small }: { small: boolean }) {
   );
 }
 
-export default function RoofScene({ playingRef, playing, seekRef, seekTick, onStage, active, small }: RoofSceneProps) {
+export default memo(RoofScene);
+
+function RoofScene({ playingRef, playing, seekRef, seekTick, onStage, active, small }: RoofSceneProps) {
   const clock = useRef<Clock>({ t: 0, dt: 0, small, playing: true, settle: 0 });
   const labels = useRef<SampleLabels>({ layers: [], note: null });
   const [dpr, setDpr] = useState(small ? 1.5 : 1.75);

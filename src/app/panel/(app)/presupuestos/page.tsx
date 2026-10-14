@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CircleAlert, FileSpreadsheet } from "lucide-react";
 import { QuoteActions, NewQuoteButton } from "@/components/panel/presupuestos/QuoteActions";
+import { RefreshOnReturn } from "@/components/panel/presupuestos/RefreshOnReturn";
 import { formatDate } from "@/components/panel/document/DossierDocument";
 import { QUOTE_STATUSES, formatEuros, hydrateQuote, quoteNumber, quoteTotals, statusInfo, type QuoteStatus } from "@/lib/presupuestos/types";
 import { getSupabaseServer } from "@/lib/supabase/server";
@@ -51,6 +52,7 @@ export default async function PresupuestosPage({ searchParams }: PageProps<"/pan
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
+      <RefreshOnReturn />
       <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-extrabold tracking-[0.22em] text-ink-400 uppercase">Panel de Aislaser</p>

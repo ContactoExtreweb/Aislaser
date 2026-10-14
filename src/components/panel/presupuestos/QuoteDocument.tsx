@@ -2,7 +2,7 @@
 import { LAYOUTS, LetterheadPage, formatDate } from "@/components/panel/document/DossierDocument";
 import { company } from "@/content/company";
 import type { Branding } from "@/lib/dossier/types";
-import { addDays, formatEuros, formatPercent, formatQuantity, lineCents, quoteNumber, quoteTotals, type Quote, type QuoteLine } from "@/lib/presupuestos/types";
+import { addDays, formatEuros, formatPercent, formatQuantity, isPrintable, lineCents, quoteNumber, quoteTotals, type Quote, type QuoteLine } from "@/lib/presupuestos/types";
 
 /* El presupuesto va sobre el mismo membrete que los informes técnicos (caja de LAYOUTS.informe) */
 export const QUOTE_LAYOUT = LAYOUTS.informe;
@@ -53,7 +53,7 @@ export function buildQuoteBlocks(quote: Quote, branding: Branding): QuoteBlock[]
   if (quote.obra.trim() || quote.ubicacion.trim()) blocks.push({ kind: "subject", key: "subject", obra: quote.obra, ubicacion: quote.ubicacion, space: 22 });
   paragraphs(quote.introduccion).forEach((p, i) => blocks.push({ kind: "para", key: `intro-${i}`, text: p, space: i ? 8 : 18 }));
 
-  const lines = quote.lineas.filter((l) => l.tipo === "capitulo" || l.descripcion.trim() || l.precio !== 0);
+  const lines = quote.lineas.filter(isPrintable);
   const totals = quoteTotals(quote);
   if (lines.length) {
     blocks.push({ kind: "tableHead", key: "thead", space: 22, keepWithNext: true, inTable: true });
@@ -98,7 +98,7 @@ export function buildQuoteBlocks(quote: Quote, branding: Branding): QuoteBlock[]
   return blocks;
 }
 
-export type PlacedQuoteBlock = { block: QuoteBlock; space: number; repeatHead?: boolean };
+export type PlacedQuoteBlock = { block: QuoteBlock; space: number; repeatHead?: boolean; overflow?: boolean };
 
 /**
  * Reparte los bloques en hojas según su altura medida. Si la tabla sigue en la hoja siguiente,
@@ -113,9 +113,13 @@ export function paginateQuote(blocks: QuoteBlock[], heights: number[], contentH:
   blocks.forEach((block, i) => {
     const h = heights[i] ?? 0;
     let space = current.length ? block.space : 0;
+    // Lo que debe ir en la misma hoja: este bloque y los encadenados con keepWithNext
+    // (cabecera de la tabla → capítulo → su primera partida)
     let need = space + h;
-    if (block.keepWithNext && i + 1 < blocks.length) need += blocks[i + 1].space + (heights[i + 1] ?? 0);
-    if (current.length && used + need > contentH) {
+    for (let j = i; blocks[j].keepWithNext && j + 1 < blocks.length; j++) need += blocks[j + 1].space + (heights[j + 1] ?? 0);
+    // Una hoja que sólo tiene la cabecera repetida no se cierra: el bloque va ahí aunque no quepa entero
+    const onlyRepeatedHead = current.length > 0 && current.every((c) => c.repeatHead);
+    if (current.length && !onlyRepeatedHead && used + need > contentH) {
       pages.push(current);
       current = [];
       used = 0;
@@ -126,7 +130,7 @@ export function paginateQuote(blocks: QuoteBlock[], heights: number[], contentH:
         used = headH;
       }
     }
-    current.push({ block, space });
+    current.push({ block, space, overflow: h > contentH });
     used += space + h;
   });
   if (current.length) pages.push(current);

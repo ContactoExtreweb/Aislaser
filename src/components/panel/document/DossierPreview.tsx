@@ -47,7 +47,7 @@ export function DossierPreview({ dossier, branding }: { dossier: Dossier; brandi
   // El formato informe no tiene portada: todas las hojas llevan el membrete
   const totalPages = (pages?.length ?? 0) + (informe ? 0 : 1);
   const overflow = pages?.some((p) => p.some((b) => b.overflow));
-  const baseName = `${slugify(dossier.title, "dosier")}${dossier.reference ? `-${slugify(dossier.reference)}` : ""}`;
+  const baseName = `${slugify(dossier.title, "dosier")}${dossier.reference ? `-${slugify(dossier.reference, "dosier")}` : ""}`;
 
   const renderPages = (type: "jpeg" | "png", onProgress: (i: number, n: number) => void) =>
     renderPageNodes(Array.from(pagesRef.current?.querySelectorAll<HTMLElement>("[data-dossier-page]") ?? []), type, { onStage: setBusy, onProgress });
