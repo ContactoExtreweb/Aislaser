@@ -3,57 +3,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Download, FileImage, LoaderCircle, Printer, TriangleAlert } from "lucide-react";
 import type { Branding, Dossier } from "@/lib/dossier/types";
-import { getBrandFontCss } from "./embedFonts";
 import { BlockView, ContentPage, CoverPage, InformePage, LAYOUTS, PAGE_H, PAGE_W, buildBlocks, paginate, type PlacedBlock } from "./DossierDocument";
-
-function slugify(text: string) {
-  return (
-    text
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 60) || "dosier"
-  );
-}
-
-const TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-
-const blobToDataUrl = (blob: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-
-/** Descarga una imagen con reintentos (cobertura mala) y la devuelve incrustada */
-async function imageToDataUrl(src: string, tries = 3): Promise<string> {
-  let lastError: unknown;
-  for (let i = 0; i < tries; i++) {
-    try {
-      const res = await fetch(src, { cache: i ? "reload" : "default" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      if (blob.type && !blob.type.startsWith("image/")) throw new Error("No es una imagen");
-      return await blobToDataUrl(blob);
-    } catch (e) {
-      lastError = e;
-      await new Promise((r) => setTimeout(r, 700 * (i + 1)));
-    }
-  }
-  throw lastError;
-}
-
-function download(url: string, filename: string) {
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
+import { download, renderPages as renderPageNodes, savePdf, slugify } from "./exportPages";
 
 export function DossierPreview({ dossier, branding }: { dossier: Dossier; branding: Branding }) {
   const layout = LAYOUTS[dossier.template];
@@ -96,56 +47,10 @@ export function DossierPreview({ dossier, branding }: { dossier: Dossier; brandi
   // El formato informe no tiene portada: todas las hojas llevan el membrete
   const totalPages = (pages?.length ?? 0) + (informe ? 0 : 1);
   const overflow = pages?.some((p) => p.some((b) => b.overflow));
-  const baseName = `${slugify(dossier.title)}${dossier.reference ? `-${slugify(dossier.reference)}` : ""}`;
+  const baseName = `${slugify(dossier.title, "dosier")}${dossier.reference ? `-${slugify(dossier.reference)}` : ""}`;
 
-  async function renderPages(type: "jpeg" | "png", onProgress: (i: number, n: number) => void) {
-    const { toJpeg, toPng } = await import("html-to-image");
-    const nodes = Array.from(pagesRef.current?.querySelectorAll<HTMLElement>("[data-dossier-page]") ?? []);
-    const fontEmbedCSS = await getBrandFontCss();
-
-    // 1) Incrustar todas las fotos antes de capturar: si una falla, el resto del documento sale igual
-    setBusy("Preparando las fotos…");
-    const imgs = nodes.flatMap((n) => Array.from(n.querySelectorAll("img")));
-    const originals = new Map<HTMLImageElement, string>();
-    const bySrc = new Map<string, Promise<string | null>>();
-    const missing: string[] = [];
-    await Promise.all(
-      imgs.map(async (img) => {
-        const src = img.getAttribute("src");
-        if (!src || src.startsWith("data:")) return;
-        if (!bySrc.has(src)) bySrc.set(src, imageToDataUrl(src).catch(() => null));
-        const data = await bySrc.get(src);
-        originals.set(img, src);
-        img.src = data ?? TRANSPARENT_PIXEL;
-        if (!data) missing.push(img.alt || "una foto");
-        await img.decode().catch(() => undefined);
-      }),
-    );
-
-    // 2) Capturar cada hoja
-    try {
-      const out: string[] = [];
-      for (let i = 0; i < nodes.length; i++) {
-        onProgress(i + 1, nodes.length);
-        const opts = {
-          pixelRatio: 2,
-          width: PAGE_W,
-          height: PAGE_H,
-          backgroundColor: "#ffffff",
-          fontEmbedCSS,
-          quality: 0.92,
-          imagePlaceholder: TRANSPARENT_PIXEL,
-          includeQueryParams: true,
-        };
-        out.push(type === "jpeg" ? await toJpeg(nodes[i], opts) : await toPng(nodes[i], opts));
-      }
-      return { images: out, missing: [...new Set(missing)] };
-    } finally {
-      originals.forEach((src, img) => {
-        img.src = src;
-      });
-    }
-  }
+  const renderPages = (type: "jpeg" | "png", onProgress: (i: number, n: number) => void) =>
+    renderPageNodes(Array.from(pagesRef.current?.querySelectorAll<HTMLElement>("[data-dossier-page]") ?? []), type, { onStage: setBusy, onProgress });
 
   const reportMissing = (missing: string[]) =>
     setWarning(
@@ -163,14 +68,7 @@ export function DossierPreview({ dossier, branding }: { dossier: Dossier; brandi
       const { images, missing } = await renderPages("jpeg", (i, n) => setBusy(`Preparando página ${i} de ${n}…`));
       reportMissing(missing);
       setBusy("Creando el PDF…");
-      const { jsPDF } = await import("jspdf");
-      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
-      images.forEach((img, i) => {
-        if (i > 0) pdf.addPage();
-        pdf.addImage(img, "JPEG", 0, 0, 210, 297, undefined, "FAST");
-      });
-      pdf.setProperties({ title: dossier.title, author: "Aislaser", creator: "Panel de dosieres Aislaser" });
-      pdf.save(`${baseName}.pdf`);
+      await savePdf(images, `${baseName}.pdf`, dossier.title, "Panel de dosieres Aislaser");
     } catch (e) {
       console.error(e);
       setError("No se pudo generar el PDF. Comprueba tu conexión e inténtalo de nuevo.");

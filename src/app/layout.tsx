@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Mulish } from "next/font/google";
 import { baseOpenGraph, company, siteUrl } from "@/content/company";
 import "./globals.css";
+import { siteKeywords, siteTitle } from "@/content/seo";
 
 const mulish = Mulish({
   subsets: ["latin"],
@@ -18,24 +19,10 @@ const barlow = Barlow_Condensed({
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: {
-    default: "Aislaser · Impermeabilización de cubiertas con poliurea y poliuretano",
-    template: "%s · Aislaser",
-  },
+  title: siteTitle,
   description: company.description,
   applicationName: "Aislaser",
-  keywords: [
-    "impermeabilización",
-    "poliurea",
-    "poliuretano proyectado",
-    "impermeabilización de cubiertas",
-    "cubiertas técnicas",
-    "aislamiento térmico",
-    "aislamiento acústico",
-    "corte de hormigón",
-    "Badajoz",
-    "Extremadura",
-  ],
+  keywords: siteKeywords,
   openGraph: {
     ...baseOpenGraph,
     images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "Aislaser · Impermeabilización con poliurea" }],

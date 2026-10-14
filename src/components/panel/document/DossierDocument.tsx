@@ -342,7 +342,7 @@ export function BlockView({ block }: { block: Block }) {
 /*  Páginas                                                            */
 /* ------------------------------------------------------------------ */
 
-const pageStyle: React.CSSProperties = {
+export const pageStyle: React.CSSProperties = {
   width: PAGE_W,
   height: PAGE_H,
   background: "#ffffff",
@@ -366,6 +366,15 @@ function PageBlocks({ blocks, layout }: { blocks: PlacedBlock[]; layout: PageLay
 
 /** Hoja con el membrete del informe técnico de Aislaser */
 export function InformePage({ blocks, pageNumber, totalPages }: { blocks: PlacedBlock[]; pageNumber: number; totalPages: number }) {
+  return (
+    <LetterheadPage pageNumber={pageNumber} totalPages={totalPages}>
+      <PageBlocks blocks={blocks} layout={LAYOUTS.informe} />
+    </LetterheadPage>
+  );
+}
+
+/** Hoja A4 con el membrete oficial de Aislaser (informes y presupuestos); el contenido va en la caja de LAYOUTS.informe */
+export function LetterheadPage({ pageNumber, totalPages, children }: { pageNumber: number; totalPages: number; children: React.ReactNode }) {
   const layout = LAYOUTS.informe;
   return (
     <div data-dossier-page="" style={pageStyle}>
@@ -400,7 +409,7 @@ export function InformePage({ blocks, pageNumber, totalPages }: { blocks: Placed
         Nº Registro. {company.registry} – C.I.F: {company.cif}
       </p>
 
-      <PageBlocks blocks={blocks} layout={layout} />
+      {children}
 
       {/* Pie del membrete */}
       <div style={{ position: "absolute", left: 18, right: 18, top: 1060, textAlign: "center" }}>

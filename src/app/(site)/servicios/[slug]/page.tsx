@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ArrowUpRight, Check, Phone } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, ChevronDown, Phone } from "lucide-react";
 import { CtaBand } from "@/components/site/CtaBand";
 import { PageHero } from "@/components/site/PageHero";
 import { ProjectCard } from "@/components/site/ProjectCard";
@@ -21,11 +21,12 @@ export async function generateMetadata({ params }: PageProps<"/servicios/[slug]"
   const { slug } = await params;
   const service = getService(slug);
   if (!service) return {};
+  const title = service.seo?.title ?? service.title;
   return {
-    title: service.title,
-    description: `${service.summary} ${service.intro[0]}`.slice(0, 300),
+    title,
+    description: service.seo?.description ?? `${service.summary} ${service.intro[0]}`.slice(0, 300),
     alternates: { canonical: `/servicios/${service.slug}` },
-    openGraph: { ...baseOpenGraph, title: service.title, images: [{ url: service.image }] },
+    openGraph: { ...baseOpenGraph, title, images: [{ url: service.image }] },
   };
 }
 
@@ -104,6 +105,54 @@ export default async function ServicePage({ params }: PageProps<"/servicios/[slu
         </div>
       </section>
 
+      {(service.diagram || service.process) && (
+        <section className="bg-ink-50 py-24 lg:py-32">
+          <div className="container-x">
+            <SectionHeading eyebrow="Cómo lo hacemos" title={`${service.name}, paso a paso`} />
+            {service.diagram && (
+              <Reveal className="mt-12">
+                <figure className="grid gap-8 lg:grid-cols-12 lg:items-center lg:gap-12">
+                  <div className="relative overflow-hidden rounded-[2rem] border border-ink-200 bg-white lg:col-span-8">
+                    <Image src={service.diagram.image} alt={service.diagram.alt} width={1600} height={1067} sizes="(min-width: 1024px) 820px, 100vw" className="h-auto w-full" />
+                    {service.diagram.parts.map((part, i) => (
+                      <span
+                        key={part.label}
+                        aria-hidden="true"
+                        className="absolute grid size-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-laser-500 text-[10px] font-extrabold text-ink-900 shadow-md ring-2 ring-white sm:size-8 sm:text-sm"
+                        style={{ left: `${part.x}%`, top: `${part.y}%` }}
+                      >
+                        {i + 1}
+                      </span>
+                    ))}
+                  </div>
+                  <figcaption className="lg:col-span-4">
+                    <ol className="grid gap-x-10 gap-y-3 sm:grid-cols-2 lg:grid-cols-1 lg:gap-y-4">
+                      {service.diagram.parts.map((part, i) => (
+                        <li key={part.label} className="flex gap-3 text-ink-700">
+                          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-laser-500 text-xs font-extrabold text-ink-900">{i + 1}</span>
+                          {part.label}
+                        </li>
+                      ))}
+                    </ol>
+                  </figcaption>
+                </figure>
+              </Reveal>
+            )}
+            {service.process && (
+              <ol className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+                {service.process.map((step, i) => (
+                  <Reveal as="li" key={step.title} delay={i * 100} className="rounded-[1.75rem] bg-white p-7 ring-1 ring-ink-200">
+                    <span className="font-display text-5xl leading-none font-bold text-laser-500">{String(i + 1).padStart(2, "0")}</span>
+                    <h3 className="mt-5 text-2xl font-bold">{step.title}</h3>
+                    <p className="mt-3 text-sm leading-relaxed text-ink-600">{step.text}</p>
+                  </Reveal>
+                ))}
+              </ol>
+            )}
+          </div>
+        </section>
+      )}
+
       {service.gallery.length > 0 && (
         <section className="pb-24">
           <div className="container-x grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -131,10 +180,39 @@ export default async function ServicePage({ params }: PageProps<"/servicios/[slu
         </section>
       )}
 
-      <section className="py-24">
+      {service.faqs && (
+        <section className="py-24 lg:py-32">
+          <div className="container-x grid gap-12 lg:grid-cols-12">
+            <SectionHeading className="lg:col-span-4" eyebrow="Preguntas frecuentes" title="Lo que más nos preguntan" />
+            <div className="divide-y divide-ink-200 border-y border-ink-200 lg:col-span-8">
+              {service.faqs.map((f) => (
+                <details key={f.q} className="group py-2">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-6 rounded-xl py-4 text-left font-display text-xl font-bold text-ink-900 [&::-webkit-details-marker]:hidden">
+                    {f.q}
+                    <ChevronDown className="size-5 shrink-0 text-ink-400 transition-transform group-open:rotate-180" />
+                  </summary>
+                  <p className="pb-5 leading-relaxed text-ink-600">{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "FAQPage",
+                mainEntity: service.faqs.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+              }).replace(/</g, "\\u003c"),
+            }}
+          />
+        </section>
+      )}
+
+      <section className={service.faqs ? "bg-ink-50 py-24" : "py-24"}>
         <div className="container-x">
           <SectionHeading eyebrow="Otros servicios" title="También te podemos ayudar con" />
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {others.map((s) => (
               <Link
                 key={s.slug}

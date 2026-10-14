@@ -8,11 +8,10 @@ import { Process } from "@/components/site/home/Process";
 import { Reveal } from "@/components/ui/Reveal";
 import { ServiceIcon } from "@/components/ui/ServiceIcon";
 import { services } from "@/content/services";
+import { pageSeo } from "@/content/seo";
 
 export const metadata: Metadata = {
-  title: "Servicios",
-  description:
-    "Impermeabilización con poliurea y poliuretano proyectado, aislamientos térmicos y acústicos, taladro y corte de hormigón, refuerzo de estructuras y chorreado de arena.",
+  ...pageSeo.servicios,
   alternates: { canonical: "/servicios" },
 };
 

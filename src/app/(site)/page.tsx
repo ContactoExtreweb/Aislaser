@@ -11,8 +11,10 @@ import { RoofSystemSection } from "@/components/site/home/RoofSystemSection";
 import { ServicesBento } from "@/components/site/home/ServicesBento";
 import { VideoSection } from "@/components/site/home/VideoSection";
 import { getProjects, pickFeatured } from "@/lib/obras";
+import { pageSeo } from "@/content/seo";
 
 export const metadata: Metadata = {
+  ...pageSeo.inicio,
   alternates: { canonical: "/" },
 };
 

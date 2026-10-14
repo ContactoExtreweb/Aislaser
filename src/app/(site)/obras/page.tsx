@@ -3,11 +3,10 @@ import { CtaBand } from "@/components/site/CtaBand";
 import { PageHero } from "@/components/site/PageHero";
 import { ProjectsExplorer } from "@/components/site/ProjectsExplorer";
 import { getProjects } from "@/lib/obras";
+import { pageSeo } from "@/content/seo";
 
 export const metadata: Metadata = {
-  title: "Obras y clientes",
-  description:
-    "Aeropuertos, centrales energéticas, hospitales, piscinas, parkings y viviendas: descubre las obras de impermeabilización y aislamiento realizadas por Aislaser.",
+  ...pageSeo.obras,
   alternates: { canonical: "/obras" },
 };
 

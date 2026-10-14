@@ -23,6 +23,8 @@ const SESSION_EXPIRED = "Tu sesión ha caducado. Abre el panel en otra pestaña,
 function dbError(prefix: string, error: { code?: string; message: string }) {
   if (error.code === "PGRST205" || error.code === "42P01") return MISSING_TABLE;
   if (error.code === "42501") return `${prefix}: no tienes permiso. Vuelve a entrar en el panel.`;
+  if (error.code === "23514" && error.message.includes("servicios_validos"))
+    return `${prefix}: falta ejecutar en Supabase el archivo supabase/migrations/005_presupuestos.sql para poder marcar el servicio de insuflado.`;
   if (error.code === "23514") return `${prefix}: para que salga en la web hacen falta el sector y al menos una foto.`;
   return `${prefix}: ${error.message}`;
 }

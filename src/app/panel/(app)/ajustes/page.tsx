@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CircleAlert } from "lucide-react";
 import { SettingsForm } from "@/components/panel/SettingsForm";
+import { QuoteSettingsForm } from "@/components/panel/presupuestos/QuoteSettingsForm";
 import { getBranding } from "@/lib/dossier/branding";
 import { getSupabaseServer } from "@/lib/supabase/server";
 
@@ -8,7 +9,11 @@ export const metadata: Metadata = { title: "Ajustes" };
 
 export default async function AjustesPage() {
   const supabase = await getSupabaseServer();
-  const { settings } = await getBranding(supabase);
+  const [{ settings }, { data: quoteSettings }] = await Promise.all([
+    getBranding(supabase),
+    // Sólo existe tras la migración 005; si falta, no se muestra el bloque
+    supabase.from("app_settings").select("condiciones_presupuesto").eq("id", 1).maybeSingle(),
+  ]);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
@@ -16,7 +21,10 @@ export default async function AjustesPage() {
       <h1 className="mt-2 text-5xl font-bold">Ajustes</h1>
       <div className="mt-8">
         {settings ? (
-          <SettingsForm settings={settings} />
+          <div className="space-y-6">
+            <SettingsForm settings={settings} />
+            {quoteSettings && <QuoteSettingsForm conditions={(quoteSettings.condiciones_presupuesto as string) ?? ""} />}
+          </div>
         ) : (
           <p className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 font-semibold text-red-800" role="alert">
             <CircleAlert className="mt-0.5 size-5 shrink-0" />

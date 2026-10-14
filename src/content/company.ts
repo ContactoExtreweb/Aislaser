@@ -3,7 +3,7 @@ export const company = {
   legalName: "Aislaser C.B.",
   tagline: "Impermeabilización de cubiertas técnicas con poliurea y poliuretano",
   description:
-    "Empresa especializada en impermeabilización de cubiertas técnicas con recubrimientos de última generación de poliureas y poliuretanos, aislamientos térmicos y acústicos, refuerzo de estructuras y corte y taladro de hormigón. Con sede en Campanario (Badajoz) y obras en toda España.",
+    "Empresa especializada en impermeabilización de cubiertas técnicas con recubrimientos de última generación de poliureas y poliuretanos, aislamientos térmicos y acústicos (también por insuflado), refuerzo de estructuras y corte y taladro de hormigón. Con sede en Campanario (Badajoz) y obras en toda España.",
   phones: [
     { label: "609 005 163", href: "tel:+34609005163" },
     { label: "619 987 792", href: "tel:+34619987792" },

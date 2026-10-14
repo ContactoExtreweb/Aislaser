@@ -10,11 +10,19 @@ export type Service = {
   intro: string[];
   image: string;
   gallery: string[];
-  icon: "droplets" | "spray" | "thermometer" | "drill" | "layers" | "anchor";
+  icon: "droplets" | "spray" | "thermometer" | "wind" | "drill" | "layers" | "anchor";
   /** Ventajas / características */
   features: string[];
   /** Dónde se aplica */
   applications: string[];
+  /** Cómo se hace, paso a paso */
+  process?: { title: string; text: string }[];
+  /** Esquema con partes numeradas (posiciones en % de la imagen) */
+  diagram?: { image: string; alt: string; parts: { x: number; y: number; label: string }[] };
+  /** Preguntas frecuentes (también van como datos estructurados para Google) */
+  faqs?: { q: string; a: string }[];
+  /** Título y descripción para Google si deben ser distintos de los de la página (palabras clave) */
+  seo?: { title?: string; description?: string };
   /** Slugs de obras relacionadas */
   projects: string[];
   /** URL antigua de la web anterior (para redirecciones 301) */
@@ -127,6 +135,92 @@ export const services: Service[] = [
     ],
     projects: ["aeropuerto-de-sevilla-t2", "cetarsa", "ifepa-murcia"],
     legacyPath: "/servicios/aislamientos.html",
+  },
+  {
+    slug: "insuflado",
+    name: "Aislamiento por insuflado",
+    title: "Aislamiento por insuflado en cámaras de aire",
+    summary: "Rellenamos la cámara de aire de fachadas y techos con aislante, sin obras y en muy poco tiempo.",
+    intro: [
+      "El insuflado es la forma más rápida y limpia de aislar un edificio que ya está construido. Muchas fachadas de ladrillo tienen dos hojas separadas por una cámara de aire que está vacía: por ahí se escapa el calor en invierno y entra en verano. Nosotros la rellenamos con material aislante, que introducimos a presión a través de pequeños taladros.",
+      "No hay que levantar paredes, mover muebles ni salir de casa. Se trabaja desde fuera (o desde dentro, si conviene) y una vivienda suele quedar terminada en una o dos jornadas. El cambio se nota desde el primer día: paredes menos frías, menos condensaciones y una factura de calefacción y aire acondicionado más baja.",
+      "Antes de insuflar revisamos la cámara (anchura, continuidad y humedad) y elegimos el material más adecuado para cada caso: lana mineral, perlas de poliestireno expandido con grafito (EPS) o espuma de poliuretano.",
+    ],
+    image: "/images/site/insuflado-fachada.webp",
+    gallery: [],
+    icon: "wind",
+    features: [
+      "Sin obras, sin escombros y sin salir de casa",
+      "Una vivienda suele quedar lista en una o dos jornadas",
+      "Mejora el aislamiento térmico y acústico",
+      "Paredes menos frías y menos condensaciones",
+      "Ahorro en calefacción y aire acondicionado",
+      "Relleno completo de la cámara, sin huecos",
+      "Mejora la calificación energética del edificio",
+      "Taladros pequeños que se sellan y apenas se notan",
+    ],
+    applications: [
+      "Fachadas con cámara de aire",
+      "Viviendas unifamiliares",
+      "Bloques de pisos y comunidades",
+      "Bajo cubierta y falsos techos",
+      "Tabiques y medianeras",
+      "Naves y locales",
+    ],
+    process: [
+      {
+        title: "Revisamos la cámara",
+        text: "Medimos su anchura y comprobamos con un endoscopio que está libre y seca. Si hace falta, localizamos las zonas más frías con cámara termográfica.",
+      },
+      {
+        title: "Hacemos los taladros",
+        text: "Pequeñas perforaciones en las juntas del ladrillo, al tresbolillo y a la distancia que necesita cada material, para llegar a toda la cámara.",
+      },
+      {
+        title: "Insuflamos el aislante",
+        text: "Con máquina y a presión controlada, de abajo arriba, hasta llenar la cámara por completo y sin dejar huecos.",
+      },
+      {
+        title: "Sellamos y comprobamos",
+        text: "Cerramos los taladros con mortero de un tono parecido a la fachada y, si se desea, verificamos el resultado con termografía.",
+      },
+    ],
+    diagram: {
+      image: "/images/site/insuflado-fachada.webp",
+      alt: "Ilustración de una fachada de ladrillo en corte: la cámara de aire entre las dos hojas se rellena de aislante a través de pequeños taladros en las juntas.",
+      parts: [
+        { x: 40.6, y: 71.2, label: "Hoja exterior de ladrillo" },
+        { x: 72.1, y: 25.5, label: "Cámara de aire vacía: por aquí se escapa el calor" },
+        { x: 72.1, y: 60.1, label: "Aislante insuflado, que rellena la cámara de abajo arriba" },
+        { x: 75.7, y: 39.9, label: "Hoja interior y enlucido: por dentro no se toca nada" },
+        { x: 48.8, y: 32.4, label: "Taladros en las juntas, al tresbolillo" },
+        { x: 60.9, y: 57.2, label: "Boquilla de insuflado" },
+        { x: 26.3, y: 32.4, label: "Taladros ya sellados con mortero" },
+      ],
+    },
+    faqs: [
+      {
+        q: "¿Cómo sé si mi fachada tiene cámara de aire?",
+        a: "Muchas fachadas de ladrillo tienen dos hojas con una cámara entre ellas, a menudo vacía o con un aislamiento muy escaso. Lo comprobamos en la visita con un pequeño taladro y un endoscopio, sin compromiso.",
+      },
+      {
+        q: "¿Hay que hacer obras o salir de casa?",
+        a: "No. Se trabaja a través de taladros pequeños, sin levantar paredes ni mover muebles, y puedes seguir en casa mientras trabajamos.",
+      },
+      {
+        q: "¿Cuánto se tarda?",
+        a: "Depende de la superficie y del acceso, pero una vivienda unifamiliar suele quedar terminada en una o dos jornadas.",
+      },
+      {
+        q: "¿Qué material se usa?",
+        a: "Depende de la cámara: lana mineral, perlas de EPS con grafito o espuma de poliuretano. Te recomendamos el más adecuado después de revisar tu fachada.",
+      },
+      {
+        q: "¿Se nota en la factura?",
+        a: "Sí. La fachada es una de las principales vías por las que una vivienda pierde calor en invierno y lo gana en verano; al rellenar la cámara se reducen esas pérdidas y la climatización trabaja menos.",
+      },
+    ],
+    projects: [],
   },
   {
     slug: "taladro-y-corte-de-hormigon",

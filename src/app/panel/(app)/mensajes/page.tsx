@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
-import { Inbox, Mail, Phone } from "lucide-react";
+import Link from "next/link";
+import { FileSpreadsheet, Inbox, Mail, Phone } from "lucide-react";
 import { MessageActions } from "@/components/panel/MessageActions";
+import { QuoteFromMessageButton } from "@/components/panel/presupuestos/QuoteActions";
 import { services } from "@/content/services";
 import { SAFE_EMAIL } from "@/lib/email";
+import { quoteNumber } from "@/lib/presupuestos/types";
 import { getSupabaseServer } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Mensajes" };
@@ -20,8 +23,13 @@ type Message = {
 
 export default async function MensajesPage() {
   const supabase = await getSupabaseServer();
-  const { data, error } = await supabase.from("contact_messages").select("*").order("created_at", { ascending: false }).limit(200);
+  const [{ data, error }, { data: quotes, error: quotesError }] = await Promise.all([
+    supabase.from("contact_messages").select("*").order("created_at", { ascending: false }).limit(200),
+    // Presupuestos ya hechos a partir de un mensaje (si aún no existe la tabla, no se ofrece el botón)
+    supabase.from("presupuestos").select("id, anio, numero, mensaje_id").not("mensaje_id", "is", null),
+  ]);
   const messages = (data ?? []) as Message[];
+  const quoteByMessage = new Map((quotes ?? []).map((q) => [q.mensaje_id as string, q]));
   const serviceName = (slug: string) => services.find((s) => s.slug === slug)?.name ?? (slug === "otro" ? "Otro" : slug);
 
   return (
@@ -55,7 +63,7 @@ export default async function MensajesPage() {
                 <MessageActions id={m.id} isRead={m.is_read} />
               </div>
               {m.message && <p className="mt-4 whitespace-pre-line text-ink-700">{m.message}</p>}
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className="mt-5 flex flex-wrap items-start gap-2">
                 <a href={`tel:${m.phone.replace(/[^\d+]/g, "")}`} className="flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2 text-sm font-bold text-white">
                   <Phone className="size-4 text-laser-500" /> {m.phone}
                 </a>
@@ -68,6 +76,17 @@ export default async function MensajesPage() {
                     <Mail className="size-4" /> {m.email}
                   </span>
                 )}
+                {!quotesError &&
+                  (quoteByMessage.has(m.id) ? (
+                    <Link
+                      href={`/panel/presupuestos/${quoteByMessage.get(m.id)!.id}`}
+                      className="flex items-center gap-2 rounded-xl border border-ink-200 px-4 py-2 text-sm font-bold text-ink-800 hover:border-ink-900"
+                    >
+                      <FileSpreadsheet className="size-4" /> Presupuesto {quoteNumber(quoteByMessage.get(m.id)!)}
+                    </Link>
+                  ) : (
+                    <QuoteFromMessageButton messageId={m.id} />
+                  ))}
               </div>
             </li>
           ))}

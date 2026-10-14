@@ -1,10 +1,11 @@
-import { Anchor, Droplets, Drill, Layers, SprayCan, Thermometer, type LucideProps } from "lucide-react";
+import { Anchor, Droplets, Drill, Layers, SprayCan, Thermometer, Wind, type LucideProps } from "lucide-react";
 import type { Service } from "@/content/services";
 
 const icons = {
   droplets: Droplets,
   spray: SprayCan,
   thermometer: Thermometer,
+  wind: Wind,
   drill: Drill,
   layers: Layers,
   anchor: Anchor,

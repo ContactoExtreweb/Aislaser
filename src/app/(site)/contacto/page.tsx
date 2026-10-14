@@ -4,11 +4,10 @@ import { ContactForm } from "@/components/site/ContactForm";
 import { PageHero } from "@/components/site/PageHero";
 import { company } from "@/content/company";
 import { services } from "@/content/services";
+import { pageSeo } from "@/content/seo";
 
 export const metadata: Metadata = {
-  title: "Contacto",
-  description:
-    "Contacta con Aislaser sin compromiso: 609 005 163 · 619 987 792 · aislaser@aislaser.es. Pol. Ind. Campanario, Nave 2 y 3, Campanario (Badajoz).",
+  ...pageSeo.contacto,
   alternates: { canonical: "/contacto" },
 };
 

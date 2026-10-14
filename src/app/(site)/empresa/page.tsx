@@ -8,11 +8,10 @@ import { Audience } from "@/components/site/home/Audience";
 import { Reveal } from "@/components/ui/Reveal";
 import { Eyebrow, Mark, SectionHeading } from "@/components/ui/SectionHeading";
 import { company } from "@/content/company";
+import { pageSeo } from "@/content/seo";
 
 export const metadata: Metadata = {
-  title: "Empresa",
-  description:
-    "Aislaser es una empresa especializada en recubrimientos de última generación de poliureas y poliuretanos, con más de 15 años de experiencia y sede en Campanario (Badajoz).",
+  ...pageSeo.empresa,
   alternates: { canonical: "/empresa" },
 };
 

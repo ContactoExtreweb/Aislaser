@@ -54,7 +54,7 @@ export function ServicesBento() {
           </Reveal>
 
           {rest.map((s, i) => (
-            <Reveal key={s.slug} delay={(i % 2) * 100} className={i === 4 ? "md:col-span-2 lg:col-span-2" : ""}>
+            <Reveal key={s.slug} delay={(i % 2) * 100} className={rest.length % 2 && i === rest.length - 1 ? "md:col-span-2" : ""}>
               <Link
                 href={`/servicios/${s.slug}`}
                 className="group relative flex h-full flex-col overflow-hidden rounded-[2rem] border border-ink-200 bg-white p-7 transition-all duration-500 hover:-translate-y-1 hover:border-transparent hover:shadow-[0_30px_60px_-30px_rgb(0_0_0/0.35)]"

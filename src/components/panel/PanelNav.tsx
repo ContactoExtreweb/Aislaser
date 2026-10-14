@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ExternalLink, FileText, Images, Inbox, LogOut, Settings } from "lucide-react";
+import { Calculator, ExternalLink, FileText, Images, Inbox, LogOut, Settings } from "lucide-react";
 import { LogoMark } from "@/components/brand/Logo";
 import { signOut } from "@/app/panel/actions";
 
@@ -10,6 +10,7 @@ export function PanelNav({ email, unread }: { email: string; unread: number }) {
   const pathname = usePathname();
   const links = [
     { href: "/panel", label: "Dosieres", icon: FileText, active: pathname === "/panel" || pathname.startsWith("/panel/dosieres") },
+    { href: "/panel/presupuestos", label: "Presupuestos", icon: Calculator, active: pathname.startsWith("/panel/presupuestos") },
     { href: "/panel/obras", label: "Obras web", icon: Images, active: pathname.startsWith("/panel/obras") },
     { href: "/panel/mensajes", label: "Mensajes", icon: Inbox, active: pathname.startsWith("/panel/mensajes"), badge: unread },
     { href: "/panel/ajustes", label: "Ajustes", icon: Settings, active: pathname.startsWith("/panel/ajustes") },
@@ -26,13 +27,15 @@ export function PanelNav({ email, unread }: { email: string; unread: number }) {
             key={l.href}
             href={l.href}
             title={l.label}
-            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold whitespace-nowrap transition-colors ${
+            aria-label={l.label}
+            aria-current={l.active ? "page" : undefined}
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-bold whitespace-nowrap transition-colors sm:px-3 ${
               l.active ? "bg-white/10 text-white" : "text-ink-400 hover:text-white"
             }`}
           >
             <l.icon className="size-4" />
-            {/* En el móvil sólo lleva texto la sección en la que estás */}
-            <span className={l.active ? "" : "hidden sm:inline"}>{l.label}</span>
+            {/* En el móvil sólo los iconos (la sección en la que estás va resaltada) */}
+            <span className="hidden md:inline">{l.label}</span>
             {!!l.badge && <span className="rounded-full bg-laser-500 px-1.5 text-[11px] text-ink-900">{l.badge}</span>}
           </Link>
         ))}

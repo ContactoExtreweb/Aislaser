@@ -220,7 +220,7 @@ export function DossierWorkspace({
   );
 }
 
-function SaveStatus({ save, demo, onRetry }: { save: SaveState; demo: boolean; onRetry: () => void }) {
+export function SaveStatus({ save, demo = false, onRetry }: { save: SaveState; demo?: boolean; onRetry: () => void }) {
   if (demo) return <p className="text-xs font-semibold text-ink-400">Modo demostración · sin guardar</p>;
   if (save.failed > 0)
     return (
